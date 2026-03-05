@@ -32,7 +32,7 @@ export default async function Page() {
   // Get club info
   const club: Club[] = await sql`
     SELECT club_id, club_name, account_status
-    FROM clubs
+    FROM public.clubs
     WHERE user_id = ${userId}
   `;
 
@@ -45,7 +45,7 @@ export default async function Page() {
   // Get visit requests
   const visitRequests: VisitRequest[] = await sql`
     SELECT status, created_at
-    FROM visit_requests
+    FROM public.visit_requests
     WHERE club_id = ${clubId}
     ORDER BY created_at DESC
   `;
@@ -53,7 +53,7 @@ export default async function Page() {
   // Get championships
   const tournaments: Tournament[] = await sql`
     SELECT status, created_at
-    FROM championships
+    FROM public.championships
     WHERE club_id = ${clubId}
     ORDER BY created_at DESC
   `;

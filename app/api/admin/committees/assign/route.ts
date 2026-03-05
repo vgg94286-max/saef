@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   }
 
   const existingCommitteeForVisit = await sql`
-    SELECT committee_id FROM committees WHERE visit_request_id = ${visit_request_id} AND status = 'بانتظار زيارة اللجنة'
+    SELECT committee_id FROM public.committees WHERE visit_request_id = ${visit_request_id} AND status = 'بانتظار زيارة اللجنة'
   `;
 
   if (existingCommitteeForVisit.length > 0) {
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     await sql.begin(async (tx) => {
       // Create committee
       const [committee] = await tx`
-        INSERT INTO committees (visit_request_id, status, created_at)
+        INSERT INTO public.committees (visit_request_id, status, created_at)
         VALUES (${visit_request_id}, 'بانتظار زيارة اللجنة', NOW())
         RETURNING committee_id
       `;
@@ -31,21 +31,21 @@ export async function POST(req: Request) {
 
       // Add leader
       await tx`
-        INSERT INTO committee_members (committee_id, user_id, role)
+        INSERT INTO public.committee_members (committee_id, user_id, role)
         VALUES (${committeeId}, ${leader_user_id}, 'رئيس')
       `;
 
       // Add members in a single query
       if (member_user_ids.length > 0) {
         await tx`
-    INSERT INTO committee_members (committee_id, user_id, role)
+    INSERT INTO public.committee_members (committee_id, user_id, role)
     VALUES ${sql(member_user_ids.map(userId => [committeeId, userId, 'عضو']))}
   `;
       }
 
       // Update visit request status
       await tx`
-        UPDATE visit_requests
+        UPDATE public.visit_requests
         SET status = 'قيد المراجعة'
         WHERE visit_id = ${visit_request_id}
       `;

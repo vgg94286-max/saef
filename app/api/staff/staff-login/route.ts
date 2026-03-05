@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 
     //join users + staff
     const result = await sql`
-      SELECT * FROM get_verified_staff_by_email(${email})
+      SELECT * FROM public.get_verified_staff_by_email(${email})
     `;
 
     if (result.length === 0) {

@@ -14,7 +14,7 @@ export async function POST(request: Request) {
         }
        
         const records = await sql`
-        SELECT * FROM users
+        SELECT * FROM public.users
         WHERE email = ${email}`;
 
         if (!records || records.length === 0) {

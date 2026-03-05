@@ -10,7 +10,7 @@ export async function GET(
   try {
     const leaveRequests = await sql`
       SELECT *
-      FROM leave_request
+      FROM public.leave_request
       WHERE request_id = ${id}
     `;
 

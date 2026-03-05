@@ -22,11 +22,11 @@ export async function POST(request: Request) {
     
 
     // Delete any existing unverified OTP for this email
-    await sql`DELETE FROM otp WHERE userid = ${user_id} AND email = ${email} AND verified = FALSE`
+    await sql`DELETE FROM public.otp WHERE userid = ${user_id} AND email = ${email} AND verified = FALSE`
 
     // Insert new OTP
     const result = await sql`
-      INSERT INTO otp (userid, email, otp_code, expires_at, create_at, verified)
+      INSERT INTO public.otp (userid, email, otp_code, expires_at, create_at, verified)
       VALUES (${user_id}, ${email}, ${otpCode}, ${expiresAt},${created_at}, FALSE)
       RETURNING userid, otp_code, expires_at
     `

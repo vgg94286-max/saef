@@ -10,13 +10,13 @@ export async function DELETE(
   try {
     // Delete staff first (FK dependency)
     await sql`
-      DELETE FROM staff
+      DELETE FROM public.staff
       WHERE user_id = ${user_id}
     `;
 
     // Delete user (cascade should handle related tables)
     await sql`
-      DELETE FROM users
+      DELETE FROM public.users
       WHERE user_id = ${user_id}
     `;
 

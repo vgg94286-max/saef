@@ -14,11 +14,11 @@ export async function POST(req: Request) {
     const result = await sql.begin(async (tx) => {
 
       await tx`
-        UPDATE users SET is_verified = ${is_verified} WHERE user_id = ${userId}
+        UPDATE public.users SET is_verified = ${is_verified} WHERE user_id = ${userId}
       `;
       // Insert club
       const insertedClub = await tx`
-        INSERT INTO clubs (user_id, club_name, license_end_date)
+        INSERT INTO public.clubs (user_id, club_name, license_end_date)
         VALUES (${userId}, ${clubName}, ${licenseExpiry})
         RETURNING club_id
       `;
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
       // 2️⃣ Insert visit request
       const insertedVisitReq = await tx`
-        INSERT INTO visit_requests (club_id, license_file)
+        INSERT INTO public.visit_requests (club_id, license_file)
         VALUES (${clubId}, ${licenseUrl})
         RETURNING visit_id
       `;
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       // 3️⃣ Insert visit images
       if (clubUrls.length > 0) {
         await tx`
-          INSERT INTO visit_images (visit_request_id, image_url)
+          INSERT INTO public.visit_images (visit_request_id, image_url)
           SELECT ${visitId}, unnest(${clubUrls}::text[])
         `;
       }

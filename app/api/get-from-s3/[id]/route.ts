@@ -9,14 +9,14 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
     // License file from DB
     const visitReq = await sql`
-      SELECT license_file FROM visit_requests WHERE visit_id = ${id}
+      SELECT license_file FROM public.visit_requests WHERE visit_id = ${id}
     `;
     const licenseUrl = visitReq[0]?.license_file;
     if (!licenseUrl) return NextResponse.json({ error: "License file not found" }, { status: 404 });
 
     // Club images from DB
     const images = await sql`
-      SELECT image_url FROM visit_images WHERE visit_request_id = ${id}
+      SELECT image_url FROM public.visit_images WHERE visit_request_id = ${id}
     `;
     const clubUrls = images.map(img => img.image_url);
 

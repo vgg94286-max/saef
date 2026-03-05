@@ -9,7 +9,7 @@ export async function PATCH(
 
   try {
     await sql`
-      UPDATE leave_request
+      UPDATE public.leave_request
       SET req_status = 'تمت الموافقة'
       WHERE request_id = ${id}
     `;

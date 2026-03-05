@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const championshipId = await sql.begin(async (tx) => {
       /* championship */
       const [championship] = await tx`
-        INSERT INTO championships (club_id, date, ambulance, agreed_on_terms)
+        INSERT INTO public.championships (club_id, date, ambulance, agreed_on_terms)
         VALUES (${data.club_id}, ${data.date}, ${data.ambulance}, ${data.agreed_on_terms})
         RETURNING championships_id
       `
@@ -44,21 +44,21 @@ export async function POST(request: Request) {
 
       /* judges */
       await tx`
-        INSERT INTO championship_judges (championship_id, judge_name)
+        INSERT INTO public.championship_judges (championship_id, judge_name)
         VALUES ${sql(data.judges.map(j => [champId, j.judge_name]))}
       `
 
       /*  rounds + prizes */
       for (const round of data.rounds) {
         const [r] = await tx`
-          INSERT INTO rounds (championship_id, name)
+          INSERT INTO public.rounds (championship_id, name)
           VALUES (${champId}, ${round.name})
           RETURNING round_id
         `
 
         if (round.prizes.length > 0) {
           await tx`
-            INSERT INTO prizes (round_id, position, amount)
+            INSERT INTO public.prizes (round_id, position, amount)
             VALUES ${sql(round.prizes.map(p => [r.round_id, p.position, p.amount]))}
           `
         }

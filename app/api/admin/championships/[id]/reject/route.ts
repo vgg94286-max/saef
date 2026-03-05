@@ -8,7 +8,7 @@ export async function PATCH(
   const { id } = await params;
   try {
     await sql 
-      `UPDATE championships SET status = 'مرفوض' WHERE championships_id = ${id}`;
+      `UPDATE public.championships SET status = 'مرفوض' WHERE championships_id = ${id}`;
       
     
     return NextResponse.json({ success: true });

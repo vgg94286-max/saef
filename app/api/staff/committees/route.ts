@@ -14,20 +14,20 @@ export async function GET(req: Request) {
   try {
     // Get committees where this user is a member
     const committees = await sql`
-  SELECT * FROM get_staff_committees(${userId})
+  SELECT * FROM public.get_staff_committees(${userId})
 `;
 
     // For each committee, get all members
     const enriched = await Promise.all(
       committees.map(async (c) => {
         const members = await sql`
-          SELECT * FROM get_committee_members(${c.committee_id})
+          SELECT * FROM public.get_committee_members(${c.committee_id})
 `;
 
 
         // Get visit images
         const images = await sql`
-          SELECT img_id, image_url FROM visit_images WHERE visit_request_id = ${c.visit_id}
+          SELECT img_id, image_url FROM public.visit_images WHERE visit_request_id = ${c.visit_id}
         `;
 
         return { ...c, members, images };

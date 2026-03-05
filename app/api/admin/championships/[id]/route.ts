@@ -10,7 +10,7 @@ export async function GET(
   try {
     // get_championship_basic ()
     const champs = await sql`
-      SELECT * FROM get_championship_basic(${id})
+      SELECT * FROM public.get_championship_basic(${id})
     `;
 
     if (champs.length === 0) {
@@ -20,19 +20,19 @@ export async function GET(
     // Judges
     const judges = await sql`
       SELECT judge_id, judge_name
-      FROM championship_judges
+      FROM public.championship_judges
       WHERE championship_id = ${id}
     `;
 
     // get_championship_rounds
     const rounds = await sql`
       SELECT *
-      FROM get_championship_rounds(${id})
+      FROM public.get_championship_rounds(${id})
     `;
 
     // get_championship_total_prizes
     const totalRows = await sql`
-      SELECT get_championship_total_prizes(${id}) as total_prizes
+      SELECT public.get_championship_total_prizes(${id}) as total_prizes
     `;
 
     return NextResponse.json({

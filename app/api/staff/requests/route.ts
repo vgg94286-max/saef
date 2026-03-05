@@ -14,17 +14,17 @@ export async function GET(req: Request) {
   try {
     // Visit requests
     const visitRequests  = await sql`
-      select * from get_all_visit_requests_for_staff()
+      select * from public.get_all_visit_requests_for_staff()
     `;
 
     // Leave requests
     const leaveRequests  = await sql`
-      select * from get_all_leave_requests_for_staff()
+      select * from public.get_all_leave_requests_for_staff()
     `;
 
     // Championship requests
     const championships  = await sql`
-      select * from get_all_championships()
+      select * from public.get_all_championships()
     `;
       
 

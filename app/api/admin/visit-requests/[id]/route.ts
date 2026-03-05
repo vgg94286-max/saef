@@ -10,7 +10,7 @@ export async function GET(
   try {
     // Get visit request using DB function
     const visits = await sql`
-      SELECT * FROM get_visit_request_by_id(${id})
+      SELECT * FROM public.get_visit_request_by_id(${id})
     `;
 
     if (!visits || visits.length === 0) {
@@ -20,7 +20,7 @@ export async function GET(
     // Get visit images
     const images = await sql`
       SELECT img_id, image_url 
-      FROM visit_images 
+      FROM public.visit_images 
       WHERE visit_request_id = ${id}
     `;
 

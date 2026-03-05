@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email and role are required" }, { status: 400 });
     }
     const existing = await sql`
-  SELECT user_id FROM users WHERE email = ${email} AND role = ${role} AND is_verified = true
+  SELECT user_id FROM public.users WHERE email = ${email} AND role = ${role} AND is_verified = true
   
 `
 

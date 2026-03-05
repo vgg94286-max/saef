@@ -45,14 +45,14 @@ export async function POST(req: NextRequest) {
       
       // Update user
       await tx`
-        UPDATE users
+        UPDATE public.users
         SET is_verified = true
         WHERE user_id = ${user_id}
       `;
 
       // Insert leave request
       const result = await tx`
-        INSERT INTO leave_request (
+        INSERT INTO public.leave_request (
           full_name,
           national_id,
           employer,

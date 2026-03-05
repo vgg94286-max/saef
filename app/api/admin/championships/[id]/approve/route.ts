@@ -10,7 +10,7 @@ export async function PATCH(
   try {
     // Update the championship status safely using parameter
     await sql`
-      UPDATE championships
+      UPDATE public.championships
       SET status = 'تمت الموافقة'
       WHERE championships_id = ${id}
     `;

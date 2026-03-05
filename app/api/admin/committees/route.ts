@@ -5,7 +5,7 @@ export async function GET() {
   try {
     // Call the PostgreSQL function directly
     const committees = await sql`
-      SELECT * FROM get_committees_with_club()
+      SELECT * FROM public.get_committees_with_club()
     `;
 
     return NextResponse.json(committees);

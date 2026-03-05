@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     // Find OTP record
     const records = await sql`
-      SELECT * FROM otp 
+      SELECT * FROM public.otp 
       WHERE userid = ${user_id} AND email = ${email} AND otp_code = ${otpCode} AND verified = FALSE
       ORDER BY create_at DESC
       LIMIT 1
@@ -36,12 +36,12 @@ export async function POST(request: NextRequest) {
 
     // Mark OTP as verified
     await sql`
-      UPDATE otp SET verified = TRUE 
+      UPDATE public.otp SET verified = TRUE 
       WHERE userid = ${user_id}
     `
     const playerInfo = await sql`
                       SELECT user_id, email,role
-                      FROM users
+                      FROM public.users
                       WHERE email = ${email}
                       LIMIT 1
                     `;

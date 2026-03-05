@@ -5,7 +5,7 @@ export async function GET() {
   try {
     // Call the PostgreSQL function get_all_staff()
     const staff = await sql`
-      SELECT * FROM get_all_staff()
+      SELECT * FROM public.get_all_staff()
     `;
 
     return NextResponse.json(staff);

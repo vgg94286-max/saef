@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     //  Get club info
     const club = await sql`
       SELECT club_id, club_name, account_status
-      FROM clubs
+      FROM public.clubs
       WHERE user_id = ${userId}
     `;
     if (!club[0]) return NextResponse.json({ error: "Club not found" }, { status: 404 });
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
     //  Get visit requests
     const visitRequests = await sql`
       SELECT status, created_at
-      FROM visit_requests
+      FROM public.visit_requests
       WHERE club_id = ${clubId}
       ORDER BY created_at DESC
     `;
@@ -43,7 +43,7 @@ export async function GET(req: Request) {
     // Get private tournaments
     const tournaments = await sql`
       SELECT status, created_at
-      FROM championships
+      FROM public.championships
       WHERE club_id = ${clubId}
       ORDER BY created_at DESC
     `;

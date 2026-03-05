@@ -35,7 +35,7 @@ export async function GET(req: Request) {
         national_address,
         req_status,
         created_at
-      FROM leave_request
+      FROM public.leave_request
       WHERE user_id = ${userId}
       ORDER BY created_at DESC
     `;

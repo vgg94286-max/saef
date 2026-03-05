@@ -5,7 +5,7 @@ export async function GET() {
   try {
     // Call the PostgreSQL function directly
     const visits = await sql`
-      SELECT * FROM get_pending_visit_requests()
+      SELECT * FROM public.get_pending_visit_requests()
     `;
 
     return NextResponse.json(visits);

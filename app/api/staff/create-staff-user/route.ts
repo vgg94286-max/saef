@@ -26,7 +26,7 @@ export async function POST(req: Request) {
 
 
     const existing = await sql`
-      SELECT user_id FROM users WHERE email = ${email} AND role = 'staff' AND is_verified = true
+      SELECT user_id FROM public.users WHERE email = ${email} AND role = 'staff' AND is_verified = true
     `
 
     if (existing.length > 0) {
@@ -41,17 +41,17 @@ export async function POST(req: Request) {
 
     const result = await sql.begin(async (tx) => {
       await tx` 
-      update users set is_verified = true where email = ${email} and role = 'staff'`
+      update public.users set is_verified = true where email = ${email} and role = 'staff'`
 
       const userRes = await tx`
-        update users set password_hash = ${passwordHash} where email = ${email} and role = 'staff'
+        update public.users set password_hash = ${passwordHash} where email = ${email} and role = 'staff'
         RETURNING user_id
       `
 
       const userId = userRes[0].user_id
 
       const staffRes = await tx`
-        INSERT INTO staff (user_id, staff_name)
+        INSERT INTO public.staff (user_id, staff_name)
         VALUES (${userId}, ${staffName})
         RETURNING staff_id , staff_name
 

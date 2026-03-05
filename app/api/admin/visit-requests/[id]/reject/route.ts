@@ -9,16 +9,16 @@ export async function PATCH(
 
   try {
     await sql`
-      UPDATE visit_requests 
+      UPDATE public.visit_requests 
       SET status = 'مرفوض' 
       WHERE visit_id = ${id}
     `;
      const club_id = await sql`
-          SELECT club_id FROM visit_requests WHERE visit_id = ${id}
+          SELECT club_id FROM public.visit_requests WHERE visit_id = ${id}
         `;
         
         await sql`
-          UPDATE clubs
+          UPDATE public.clubs
           SET account_status = 'معطل'
           WHERE club_id = ${club_id[0].club_id}
         `;

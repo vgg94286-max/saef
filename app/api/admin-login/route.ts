@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     
     // Check credentials
     const admins = await sql`
-  SELECT * FROM users WHERE email = ${email} AND role = 'admin'
+  SELECT * FROM public.users WHERE email = ${email} AND role = 'admin'
 `;
 
 

@@ -13,7 +13,7 @@ export async function POST(req: Request) {
             );
         }
         // Inside api/reports POST
-        const existing = await sql`SELECT id FROM visit_reports WHERE committee_id = ${committee_id}`;
+        const existing = await sql`SELECT id FROM public.visit_reports WHERE committee_id = ${committee_id}`;
         if (existing.length > 0) {
             return NextResponse.json({ error: "تم رفع تقرير لهذه اللجنة مسبقاً" }, { status: 400 });
         }
@@ -22,13 +22,13 @@ export async function POST(req: Request) {
 
             // Insert report
             await tx`
-        INSERT INTO visit_reports (visit_request_id, committee_id, report_text)
+        INSERT INTO public.visit_reports (visit_request_id, committee_id, report_text)
         VALUES (${visit_request_id}, ${committee_id}, ${report_text})
       `;
 
             // Update committee status
             await tx`
-        UPDATE committees
+        UPDATE public.committees
         SET status = 'تم رفع التقرير'
         WHERE committee_id = ${committee_id}
       `;

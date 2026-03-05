@@ -4,7 +4,7 @@ import { sql } from "@/lib/db";
 export async function GET() {
   try {
     // Call the PostgreSQL function we created
-    const visits = await sql`SELECT * FROM get_all_visit_requests()`;
+    const visits = await sql`SELECT * FROM public.get_all_visit_requests()`;
 
     return NextResponse.json(visits);
   } catch (error) {

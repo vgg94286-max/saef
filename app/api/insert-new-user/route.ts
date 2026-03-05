@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Email and role are required" }, { status: 400 });
     }
     const existing = await sql`
-  SELECT user_id, is_verified FROM users WHERE email = ${email}
+  SELECT user_id, is_verified FROM public.users WHERE email = ${email}
 `
 
 
@@ -24,13 +24,13 @@ export async function POST(req: Request) {
         )
       } else {
 
-        await sql` delete from users where email = ${email} and role = ${role} and is_verified = false`
+        await sql` delete from public.users where email = ${email} and role = ${role} and is_verified = false`
 
       }
     }
     // Insert user
     const insertedUser = await sql`
-      INSERT INTO users (email, role)
+      INSERT INTO public.users (email, role)
       VALUES (${email}, ${role})
       RETURNING user_id, email, role
     `;
