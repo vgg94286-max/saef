@@ -182,7 +182,7 @@ export function ClubDashboard({ data }: { data: DashboardData }) {
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-3 mb-8">
-                    <Button className="gap-2" onClick={() => router.push("/visit-req")}>
+                    <Button className="gap-2" onClick={() => router.push("/visit-req-logged")}>
 
                         <Plus className="h-4 w-4 hover:cursor-pointer" />
                         انشاء طلب زيارة جديد
