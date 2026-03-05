@@ -34,7 +34,7 @@ export function AdminSidebar() {
       {/* Logo */}
       <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-5">
         <img
-          src="/saef.png"
+          src="/Saef.png"
           alt="شعار الاتحاد السعودي للفروسية"
           className="h-10 w-auto"
         />

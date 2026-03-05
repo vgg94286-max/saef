@@ -71,7 +71,7 @@ export function OTPVerification({ email, user_id, onVerified, onBack }: OTPVerif
 
       setResendCountdown(60)
 
-      if (data.otp) console.log("OTP:", data.otp)
+      
     } catch (err) {
       setError("حدث خطأ في إرسال الكود")
       console.error(err)

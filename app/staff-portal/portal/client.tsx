@@ -12,6 +12,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import LogoutButton from "@/components/logout-button";
 import { useSWRConfig } from "swr";
 import { useRouter } from 'next/navigation'
 import {
@@ -102,7 +103,7 @@ type CommitteeMember = { role: string; staff_name: string };
 type CommitteeImage = { img_id: number; image_url: string };
 type StaffCommittee = {
     committee_id: number;
-    visit_request_id: number;
+    visit_id: number;
     committee_status: string;
     committee_created_at: string;
     role: string;
@@ -153,17 +154,24 @@ export default function StaffPortalPage() {
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" dir="rtl">
             {/* Header Styled with Federation Colors */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
-                <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-gradient-to-br from-[#2D6A4F] to-[#1B4332] shadow-sm shrink-0">
-                    <ClipboardList className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-black text-[#1B4332]">بوابة الموظف</h1>
-                    <p className="text-sm text-muted-foreground">
-                        مرحباً، <span className="font-bold text-[#40916C]">{me.staff_name}</span>
-                    </p>
-                </div>
-            </div>
+            {/* Header Styled with Federation Colors */}
+<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div className="flex items-center gap-4">
+        <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-gradient-to-br from-[#2D6A4F] to-[#1B4332] shadow-sm shrink-0">
+            <ClipboardList className="h-6 w-6 text-white" />
+        </div>
+        <div>
+            <h1 className="text-2xl font-black text-[#1B4332]">بوابة الموظف</h1>
+            <p className="text-sm text-muted-foreground">
+                مرحباً، <span className="font-bold text-[#40916C]">{me.staff_name}</span>
+            </p>
+        </div>
+    </div>
+
+    {/* Logout Button */}
+    <LogoutButton />
+</div>
+
 
             <Tabs defaultValue="requests" className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-8 max-w-md bg-secondary/20 p-1 rounded-xl">
@@ -196,10 +204,12 @@ export default function StaffPortalPage() {
 function SubmitReportModal({
     committee,
     open,
+    userId,
     onOpenChange,
 }: {
     committee: StaffCommittee | null;
     open: boolean;
+    userId:string;
     onOpenChange: (open: boolean) => void;
 }) {
     const [reportText, setReportText] = useState("");
@@ -207,22 +217,28 @@ function SubmitReportModal({
     const { mutate } = useSWRConfig(); // Import this from 'swr'
     const {toast} = useToast()
 
-    async function handleSubmit() {
-        if (!committee || !reportText.trim()) return;
 
-        console.log({
-  visit_request_id: committee.visit_request_id,
-  committee_id: committee.committee_id,
-  report_text: reportText,
+ console.log({
+            visit_id: committee?.visit_id,
+            committee_id: committee?.committee_id,
+             report_text: reportText,
 });
 
+
+    async function handleSubmit() {
+
+        
+
+        if (!committee || !reportText.trim()) return;
+
+       
         setIsSubmitting(true);
         try {
             const res = await fetch("/api/staff/reports", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    visit_request_id: committee.visit_request_id,
+                    visit_request_id: committee.visit_id,
                     committee_id: committee.committee_id,
                     report_text: reportText,
                 }),
@@ -235,7 +251,7 @@ function SubmitReportModal({
       title: "تم",
       description: "تم رفع التقرير بنجاح",
     })
-            mutate(`/api/staff/committees`);// Or your specific key
+            mutate(`/api/staff/committees?user_id=${userId}`);
             onOpenChange(false);
             setReportText("");
         } catch (err) {
@@ -504,6 +520,7 @@ function MyCommitteesSection({ userId }: { userId: string }) {
             <SubmitReportModal
                 committee={selectedCommittee}
                 open={reportOpen}
+                userId={userId}
                 onOpenChange={setReportOpen}
             />
         </div>

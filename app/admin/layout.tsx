@@ -1,4 +1,5 @@
 import { AdminSidebar } from "@/components/admin-sidebar";
+import LogoutButton from "@/components/logout-button"; 
 
 export default function AdminLayout({
   children,
@@ -23,9 +24,8 @@ export default function AdminLayout({
           <div className="lg:hidden w-10" /> 
           
           <div className="flex items-center gap-3">
-            <span className="hidden sm:inline text-sm text-muted-foreground">
-              مدير النظام
-            </span>
+            
+            <LogoutButton></LogoutButton>
             
           </div>
         </header>

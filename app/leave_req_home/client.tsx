@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { PageHeader } from "@/components/page-header-d&f"
 import { Footer } from "@/components/footer"
 import { useRouter } from "next/navigation";
+import LogoutButton from "@/components/logout-button";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
@@ -26,7 +27,14 @@ export default function LeaveRequestsPage() {
 
   return (
     <div>
-    <PageHeader></PageHeader>
+    <div className="flex">
+        <PageHeader>
+
+        </PageHeader>
+        <LogoutButton></LogoutButton>
+
+    </div>
+    
     <div className="container mx-auto px-4 py-10 space-y-10">
     
       <h1 className="text-3xl font-bold text-foreground text-center mb-2">

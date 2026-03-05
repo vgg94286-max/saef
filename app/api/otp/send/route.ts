@@ -35,8 +35,8 @@ export async function POST(request: Request) {
     // For now, we'll return it in development
    
         await resend.emails.send({
-            from: "onboarding@resend.dev",
-            to: "gazi8932055@gmail.com",
+            from: "contact@zuhdmedia.site",
+            to: `${email}`,
             subject: "رمز التحقق الخاص بك",
             html: `
             <div style="font-family: 'Tajawal', Arial, sans-serif; color: #333; direction: rtl; text-align: right;">
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
                 <p>سينتهي صلاحية هذا الرمز خلال <strong>10 دقائق</strong>.</p>
                 <p>إذا لم تطلب هذا الرمز، يرجى تجاهل هذه الرسالة.</p>
                 <br>
-                <p>مع التحية،<br>فريق Your App</p>
+                <p>مع التحية،<br>اللجنة الفنية لاتحاد الفروسية</p>
             </div>
             `,
         })

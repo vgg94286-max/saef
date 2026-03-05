@@ -13,7 +13,7 @@ export async function POST(req: Request) {
             );
         }
         // Inside api/reports POST
-        const existing = await sql`SELECT report_id FROM visit_reports WHERE committee_id = ${committee_id}`;
+        const existing = await sql`SELECT id FROM visit_reports WHERE committee_id = ${committee_id}`;
         if (existing.length > 0) {
             return NextResponse.json({ error: "تم رفع تقرير لهذه اللجنة مسبقاً" }, { status: 400 });
         }

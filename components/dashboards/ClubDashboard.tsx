@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import LogoutButton from "@/components/logout-button"; 
 import {
     Calendar,
     ClipboardList,
@@ -130,7 +131,7 @@ export function ClubDashboard({ data }: { data: DashboardData }) {
                         {/* Logo + Title */}
                         <div className="flex items-center gap-4">
                             <img
-                                src="/saef.png"
+                                src="/Saef.png"
                                 alt="شعار الاتحاد السعودي للفروسية"
                                 className="h-22 w-auto"
                             />
@@ -150,6 +151,7 @@ export function ClubDashboard({ data }: { data: DashboardData }) {
                             <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary text-primary-foreground">
                                 <Building2 className="h-5 w-5" />
                             </div>
+                            <LogoutButton></LogoutButton>
                         </div>
                     </div>
                 </div>

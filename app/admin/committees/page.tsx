@@ -1,6 +1,12 @@
 "use client";
 
 import useSWR, { mutate } from "swr";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +51,7 @@ type Committee = {
   club_name: string;
   created_at: string;
   status: string;
+  report_text?: string;
 };
 
 type StaffMember = {
@@ -176,7 +183,7 @@ function AssignModal({
   const [memberIds, setMemberIds] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-    const { toast } = useToast();
+  const { toast } = useToast();
 
   function toggleMember(userId: string) {
     setMemberIds((prev) => {
@@ -188,42 +195,42 @@ function AssignModal({
   }
 
   async function handleAssign() {
-  if (!visit || !leaderId) return;
+    if (!visit || !leaderId) return;
 
-  setSubmitting(true);
+    setSubmitting(true);
 
-  try {
-    const res = await fetch("/api/admin/committees/assign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        visit_request_id: visit.visit_id,
-        leader_user_id: leaderId,
-        member_user_ids: Array.from(memberIds),
-      }),
-    });
+    try {
+      const res = await fetch("/api/admin/committees/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          visit_request_id: visit.visit_id,
+          leader_user_id: leaderId,
+          member_user_ids: Array.from(memberIds),
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      setError(data.error || "فشل تعيين اللجنة");
-      toast({ title: "خطأ", description: data.error || "فشل تعيين اللجنة", variant: "destructive" });
-      return;
-    }
+      if (!res.ok) {
+        setError(data.error || "فشل تعيين اللجنة");
+        toast({ title: "خطأ", description: data.error || "فشل تعيين اللجنة", variant: "destructive" });
+        return;
+      }
 
       toast({ title: "نجاح", description: "تم تعيين اللجنة بنجاح!" });
-    mutate("/api/admin/committees/pending-visits");
-    mutate("/api/admin/committees");
+      mutate("/api/admin/committees/pending-visits");
+      mutate("/api/admin/committees");
 
-    onOpenChange(false);
-    setLeaderId("");
-    setMemberIds(new Set());
-  } catch (err) {
-    alert("فشل الاتصال بالخادم");
-  } finally {
-    setSubmitting(false);
+      onOpenChange(false);
+      setLeaderId("");
+      setMemberIds(new Set());
+    } catch (err) {
+      alert("فشل الاتصال بالخادم");
+    } finally {
+      setSubmitting(false);
+    }
   }
-}
 
   const availableMembers = staffList?.filter(
     (s) => String(s.user_id) !== leaderId
@@ -316,6 +323,7 @@ function ActiveCommitteesTab() {
             <TableHead className=" font-semibold px-4">اسم النادي</TableHead>
             <TableHead className=" font-semibold px-4">تاريخ التعيين</TableHead>
             <TableHead className=" font-semibold px-4">الحالة</TableHead>
+            <TableHead className="font-semibold px-4">التقرير</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -331,12 +339,32 @@ function ActiveCommitteesTab() {
             data.map((cm) => (
               <TableRow key={cm.committee_id}>
                 <TableCell className="px-4 font-medium">{cm.club_name}</TableCell>
+
                 <TableCell className="px-4 text-muted-foreground">
                   {new Date(cm.created_at).toISOString().split("T")[0]}
                 </TableCell>
+
                 <TableCell className="px-4">
                   <StatusBadge status={cm.status} />
                 </TableCell>
+
+                <TableCell className="px-4">
+  {cm.status === "تم رفع التقرير" ? (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="outline">
+          عرض التقرير
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent className="w-80 text-sm leading-relaxed">
+        {cm.report_text || "لا يوجد تقرير"}
+      </PopoverContent>
+    </Popover>
+  ) : (
+    <span className="text-muted-foreground">-</span>
+  )}
+</TableCell>
               </TableRow>
             ))
           ) : (

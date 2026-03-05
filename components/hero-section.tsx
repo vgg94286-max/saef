@@ -22,7 +22,7 @@ export function HeroSection() {
         {/* Logo */}
         <div className="mb-8 md:mb-12">
           <Image
-            src="/saef.png"
+            src="/Saef.png"
             alt="الاتحاد السعودي للفروسية"
             width={300}
             height={300}

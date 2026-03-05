@@ -16,7 +16,7 @@ export function PageHeader() {
         <div className="flex justify-end">
           
           <Image
-            src="/saef.png"
+            src="/Saef.png"
             alt="الاتحاد السعودي للفروسية"
             width={200}
             height={200}

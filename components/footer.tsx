@@ -6,7 +6,7 @@ export function Footer() {
       <div className="container mx-auto px-4">
         <div className="flex flex-col items-center gap-6 md:flex-row md:justify-between">
           <Image
-            src="/saef.png"
+            src="/Saef.png"
             alt="الاتحاد السعودي للفروسية"
             width={140}
             height={140}

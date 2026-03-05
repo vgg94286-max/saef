@@ -50,19 +50,7 @@ export function NewLeaveRequestForm() {
     resolver: zodResolver(newRequestSchema),
   })
 
-  const insertNewUser = async (email: string, role: string) => {
-    const response = await fetch("/api/insert-new-user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, role }),
-    })
-    const result = await response.json()
-    if (!response.ok) {
-      console.error(result.error)
-      return
-    }
-    setUserId(result.user.user_id)
-  }
+  
 
   const onSubmit = async (data: NewRequestFormData) => {
     setIsLoading(true)
