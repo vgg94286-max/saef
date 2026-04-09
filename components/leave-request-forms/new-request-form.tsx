@@ -1,56 +1,102 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import{useToast} from "@/hooks/use-toast"
-
-
+import { useToast } from "@/hooks/use-toast"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Loader2, User, Award as IdCard, Building2, Phone, Mail, Ruler, Weight, DollarSign, Heart, MapPin } from "lucide-react"
+import { Loader2, User, Award, Building2, Phone, Mail, Hash, Map, Trophy, GraduationCap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { OTPVerification } from "@/components/otp_verification"
-import { redirect } from "next/navigation"
 
-const nationalAddressRegex = /^[A-Za-z]{4}[0-9]{4}$/
-
+// Updated Schema based on your new DB columns
 const newRequestSchema = z.object({
-  name: z.string().min(2, "الاسم مطلوب"),
-  nationalId: z.string().length(10, "رقم الهوية يجب أن يكون 10 أرقام").regex(/^\d+$/, "رقم الهوية يجب أن يحتوي على أرقام فقط"),
-  employer: z.string().min(2, "جهة العمل مطلوبة"),
-  phone: z.string().min(10, "رقم الجوال مطلوب").regex(/^[0-9]+$/, "رقم الجوال يجب أن يحتوي على أرقام فقط"),
-  email: z.string().email("يرجى إدخال بريد إلكتروني صحيح"),
-  height: z.string().min(1, "الطول مطلوب"),
-  weight: z.string().min(1, "الوزن مطلوب"),
-  salary: z.string().min(1, "الراتب مطلوب"),
-  maritalStatus: z.string().min(1, "الحالة الاجتماعية مطلوبة"),
-  nationalAddress: z.string().regex(nationalAddressRegex, "العنوان الوطني يجب أن يكون 4 أحرف إنجليزية متبوعة بـ 4 أرقام (مثال: ABCD1234)"),
+  name: z.string().min(2, "الاسم الرباعي مطلوب"),
+  nationalId: z.string().length(10, "رقم الهوية يجب أن يكون 10 أرقام"),
+  employment_name: z.string().min(2, "جهة العمل مطلوبة"),
+  phone: z.string().min(10, "رقم الجوال مطلوب (10 أرقام)"),
+  email: z.string().email("بريد إلكتروني غير صحيح"),
+  rider_id: z.string().length(8, "رقم الفارس يجب أن يكون 8 أرقام"),
+  requester_type: z.enum(["مدرب", "حكم", "فارس"], { 
+    required_error: "يرجى اختيار نوع مقدم الطلب" 
+  }),
+  region: z.string().min(1, "يرجى اختيار المنطقة"),
+  cham_name: z.string().min(1, "يرجى اختيار البطولة"),
+  employment_student_num: z.string().min(5, "الرقم الوظيفي/الجامعي مطلوب (5 أرقام على الأقل)"),
 })
+
+interface Region {
+  id: number;
+  nameAr: string;
+}
 
 type NewRequestFormData = z.infer<typeof newRequestSchema>
 
-export function NewLeaveRequestForm() {
+export function NewLeaveRequestForm({ defaultNationalId, defaultEmail }: { defaultNationalId?: string, defaultEmail?: string }) {
   const [isLoading, setIsLoading] = useState(false)
   const [showOTP, setShowOTP] = useState(false)
   const [email, setEmail] = useState("")
   const [userId, setUserId] = useState("")
   const [formData, setFormData] = useState<NewRequestFormData | null>(null)
+  
+  // Data for dropdowns
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [championships, setChampionships] = useState<{champ_id: number, champ_name: string}[]>([])
+
+  
   const { toast } = useToast()
-
-  const role = "leave_requester"
-
   const router = useRouter()
-
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<NewRequestFormData>({
     resolver: zodResolver(newRequestSchema),
+    defaultValues: {
+      nationalId: defaultNationalId,
+      email: defaultEmail
+    }
   })
 
   
+
+
+useEffect(() => {
+  const loadData = async () => {
+    try {
+      // Fetch both sources at once
+      const [regRes, champRes] = await Promise.all([
+        fetch("/data/regions.json"),
+        fetch("/api/public_champ")
+      ]);
+
+      const regData = await regRes.json();
+      const champData = await champRes.json();
+
+      // 1. Set Regions (handling your specific JSON format)
+      const formattedRegions: Region[] = regData.map((reg: any) => ({
+        id: reg.region_id,
+        nameAr: reg.name.ar
+      }));
+      setRegions(formattedRegions);
+
+      // 2. Set Championships
+      // Ensure champData is the array returned from your SELECT query
+      setChampionships(champData);
+
+    } catch (err) {
+      console.error("Error loading dropdown data:", err);
+      toast({
+        title: "خطأ في تحميل البيانات",
+        description: "تعذر تحميل قائمة المناطق أو البطولات",
+        variant: "destructive",
+      });
+    }
+  };
+
+  loadData();
+}, [toast]); // Added toast to dependency array for safety
 
   const onSubmit = async (data: NewRequestFormData) => {
     setIsLoading(true)
@@ -62,7 +108,7 @@ export function NewLeaveRequestForm() {
       const res = await fetch("/api/insert-new-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.email, role: role }),
+        body: JSON.stringify({ email: data.email, role: "requester" }),
       })
 
       const result = await res.json()
@@ -98,171 +144,173 @@ export function NewLeaveRequestForm() {
         body: JSON.stringify({
           full_name: formData.name,
           national_id: formData.nationalId,
-          employer: formData.employer,
+          employment_name: formData.employment_name,
           phone: formData.phone,
           email: formData.email,
-          height_cm: Number(formData.height),
-          weight_kg: Number(formData.weight),
-          salary: Number(formData.salary),
-          marital_status: formData.maritalStatus,
-          national_address: formData.nationalAddress,
+          rider_id: Number(formData.rider_id),
+          requester_type: formData.requester_type,
+          region: formData.region,
+          cham_name: formData.cham_name,
+          employment_student_num: formData.employment_student_num ? Number(formData.employment_student_num) : null,
           user_id: userId,
         }),
       })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error)
-
-        toast({
-          title: "نجاح",
-          description: "تم إنشاء طلب التفرغ بنجاح",
-        })
+      if (!res.ok) throw new Error("فشل إرسال البيانات")
+      toast({ title: "نجاح", description: "تم إنشاء طلب التفرغ بنجاح" })
       router.push("/leave_req_home")
-
-    } catch (err) {
-        toast({
-          title: "خطأ",
-          description: (err as Error).message || "حدث خطأ غير متوقع",
-          variant: "destructive",
-        })
+    } catch (err: any) {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" })
     } finally {
       setIsLoading(false)
       setShowOTP(false)
     }
   }
-
-  const handleBackFromOtp = () => {
-    setShowOTP(false)
-  }
+  
+const onInvalid = (errors: any) => {
+  console.error("FORM VALIDATION FAILED:", errors);
+};
 
   return (
     <>
       {!showOTP && (
-        
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        // This function runs ONLY when validation fails
+
+
+
+
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-5" dir="rtl">
           <div className="grid gap-5 md:grid-cols-2">
             {/* Name */}
             <div className="space-y-2">
-              <Label htmlFor="name">الاسم</Label>
+              <Label>الاسم الرباعي</Label>
               <div className="relative">
                 <User className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="name" placeholder="الاسم الكامل" {...register("name")} className="pr-10" />
+                <Input {...register("name")} className="pr-10" />
               </div>
-              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
 
-            {/* National ID */}
             <div className="space-y-2">
-              <Label htmlFor="nationalId">رقم الهوية</Label>
-              <div className="relative">
-                <IdCard className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="nationalId" placeholder="1234567890" maxLength={10} {...register("nationalId")} className="pr-10" />
-              </div>
-              {errors.nationalId && <p className="text-sm text-destructive">{errors.nationalId.message}</p>}
-            </div>
+  <Label>رقم الهوية الوطنية</Label>
+  <div className="relative">
+    {/* Ensure the name here matches "nationalId" in your Zod schema */}
+    <Input 
+      {...register("nationalId")} 
+      maxLength={10} 
+      placeholder="10xxxxxxxx"
+      
+       
+    />
+  </div>
+  {errors.nationalId && (
+    <p className="text-xs text-destructive">{errors.nationalId.message}</p>
+  )}
+</div>
 
-            {/* Employer */}
+            {/* Rider ID (8 digits) */}
             <div className="space-y-2">
-              <Label htmlFor="employer">جهة العمل</Label>
+              <Label>رقم الفارس (8 أرقام)</Label>
               <div className="relative">
-                <Building2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="employer" placeholder="اسم جهة العمل" {...register("employer")} className="pr-10" />
+                <Hash className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input {...register("rider_id")} maxLength={8} placeholder="00000000" className="pr-10" />
               </div>
-              {errors.employer && <p className="text-sm text-destructive">{errors.employer.message}</p>}
+              {errors.rider_id && <p className="text-xs text-destructive">{errors.rider_id.message}</p>}
             </div>
 
-            {/* Phone */}
+            {/* Requester Type */}
             <div className="space-y-2">
-              <Label htmlFor="phone">رقم الجوال</Label>
-              <div className="relative">
-                <Phone className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="phone" placeholder="05xxxxxxxx" {...register("phone")} className="pr-10" />
-              </div>
-              {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+              <Label>نوع مقدم الطلب</Label>
+              {/* Requester Type */}
+<Select onValueChange={(v) => setValue("requester_type", v as any, { shouldValidate: true })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="اختر النوع" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="فارس">فارس</SelectItem>
+                  <SelectItem value="حكم">حكم</SelectItem>
+                  <SelectItem value="مدرب">مدرب</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.requester_type && <p className="text-xs text-destructive">{errors.requester_type.message}</p>}
             </div>
 
-            {/* Email */}
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="email">البريد الإلكتروني</Label>
-              <div className="relative">
-                <Mail className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="email" placeholder="example@domain.com" {...register("email")} className="pr-10 text-left placeholder:text-right" dir="ltr" />
-              </div>
-              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
-            </div>
+           {/* Employment Name */}
+<div className="space-y-2">
+  <Label>المسمى الوظيفي / جهة العمل</Label>
+  <div className="relative">
+    <Building2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    <Input {...register("employment_name")} className="pr-10" />
+  </div>
+  {errors.employment_name && <p className="text-xs text-destructive">{errors.employment_name.message}</p>}
+</div>
 
-            {/* Height */}
+{/* Student Number (REQUIRED) */}
+<div className="space-y-2">
+  <Label>الرقم الوظيفي / الجامعي</Label>
+  <div className="relative">
+    <GraduationCap className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    <Input {...register("employment_student_num")} className="pr-10" />
+  </div>
+  {errors.employment_student_num && (
+    <p className="text-xs text-destructive">{errors.employment_student_num.message}</p>
+  )}
+</div>
+
+            {/* Region (Dropdown) */}
+<div className="space-y-2">
+  <Label>المنطقة</Label>
+  {/* Region */}
+<Select onValueChange={(v) => setValue("region", v, { shouldValidate: true })}>
+    <SelectTrigger className="w-full pr-10">
+       {/* Added icon back for consistency */}
+      <Map className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <SelectValue placeholder="اختر المنطقة" />
+    </SelectTrigger>
+    <SelectContent>
+      {regions.map((reg) => (
+        <SelectItem key={reg.id} value={reg.nameAr}>
+          {reg.nameAr}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+  {errors.region && <p className="text-xs text-destructive">{errors.region.message}</p>}
+</div>
+
+ {/* Championship Name */}
+<div className="space-y-2 md:col-span-2">
+  <Label>اسم البطولة</Label>
+  <Select onValueChange={(v) => setValue("cham_name", v, { shouldValidate: true })}>
+    <SelectTrigger className={errors.cham_name ? "border-destructive" : ""}>
+      <Trophy className="ml-2 h-4 w-4 text-muted-foreground" />
+      <SelectValue placeholder="اختر البطولة" />
+    </SelectTrigger>
+    <SelectContent>
+      {Array.from(new Set(championships.map(c => c.champ_name))).map((name, index) => (
+        <SelectItem key={`champ-${index}`} value={name}>
+          {name}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+  {errors.cham_name && <p className="text-xs text-destructive">{errors.cham_name.message}</p>}
+</div>
+            
+            {/* Phone & Email (Readonly logic remains) */}
             <div className="space-y-2">
-              <Label htmlFor="height">الطول (سم)</Label>
-              <div className="relative">
-                <Ruler className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="height" placeholder="170" type="number" {...register("height")} className="pr-10" />
-              </div>
-              {errors.height && <p className="text-sm text-destructive">{errors.height.message}</p>}
+                <Label>رقم الجوال</Label>
+                <Input {...register("phone")} className="text-right" />
+                {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
             </div>
-
-            {/* Weight */}
             <div className="space-y-2">
-              <Label htmlFor="weight">الوزن (كجم)</Label>
-              <div className="relative">
-                <Weight className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="weight" placeholder="70" type="number" {...register("weight")} className="pr-10" />
-              </div>
-              {errors.weight && <p className="text-sm text-destructive">{errors.weight.message}</p>}
-            </div>
-
-            {/* Salary */}
-            <div className="space-y-2">
-              <Label htmlFor="salary">الراتب (ريال)</Label>
-              <div className="relative">
-                <DollarSign className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="salary" placeholder="10000" type="number" {...register("salary")} className="pr-10" />
-              </div>
-              {errors.salary && <p className="text-sm text-destructive">{errors.salary.message}</p>}
-            </div>
-
-            {/* Marital Status */}
-            <div className="space-y-2">
-              <Label htmlFor="maritalStatus">الحالة الاجتماعية</Label>
-              <div className="relative">
-                <Heart className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-                <Select onValueChange={(value) => setValue("maritalStatus", value)}>
-                  <SelectTrigger className="pr-10">
-                    <SelectValue placeholder="اختر الحالة" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem defaultChecked value="أعزب">أعزب</SelectItem>
-                    <SelectItem value="متزوج">متزوج</SelectItem>
-                    <SelectItem value="مطلق">مطلق</SelectItem>
-                    <SelectItem value="أرمل">أرمل</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {errors.maritalStatus && <p className="text-sm text-destructive">{errors.maritalStatus.message}</p>}
-            </div>
-
-            {/* National Address */}
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="nationalAddress">العنوان الوطني المختصر</Label>
-              <div className="relative">
-                <MapPin className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="nationalAddress" placeholder="ABCD1234" maxLength={8} {...register("nationalAddress")} className="pr-10 text-left placeholder:text-right uppercase" dir="ltr" />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                4 أحرف إنجليزية متبوعة بـ 4 أرقام (مثال: ABCD1234)
-              </p>
-              {errors.nationalAddress && <p className="text-sm text-destructive">{errors.nationalAddress.message}</p>}
+                <Label>البريد الإلكتروني</Label>
+                <Input {...register("email")} readOnly className="bg-slate-50" defaultValue={defaultEmail} />
+                {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
           </div>
 
-          <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                جاري إرسال الطلب...
-              </>
-            ) : (
-              "إرسال الطلب"
-            )}
+          <Button type="submit" className="w-full bg-emerald-800 hover:bg-emerald-900" disabled={isLoading}>
+            {isLoading ? <Loader2 className="animate-spin" /> : "إرسال طلب التفرغ"}
           </Button>
         </form>
       )}
@@ -272,7 +320,7 @@ export function NewLeaveRequestForm() {
           email={email}
           user_id={userId}
           onVerified={handleOTPVerify}
-          onBack={handleBackFromOtp}
+          onBack={() => setShowOTP(false)}
         />
       )}
     </>

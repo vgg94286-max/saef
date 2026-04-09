@@ -1,4 +1,4 @@
-import { sql } from "@/lib/db"
+import { sql, withTransaction } from "@/lib/db"
 import { NextResponse } from "next/server"
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
@@ -10,23 +10,18 @@ export async function POST(req: Request) {
     const { email, password, staffName } = body
 
     if (!email || !password || !staffName) {
-      return NextResponse.json({ error: "جميع الحقول مطلوبة" }, { status: 400 })
-    }
-
-
-
-    const domain = email?.split("@")[1]
-
-    if (domain !== "saef.org.sa") {
       return NextResponse.json(
-        { error: "يجب استخدام بريد saef.org.sa فقط" },
+        { error: "جميع الحقول مطلوبة" },
         { status: 400 }
       )
     }
 
-
     const existing = await sql`
-      SELECT user_id FROM public.users WHERE email = ${email} AND role = 'staff' AND is_verified = true
+      SELECT user_id 
+      FROM public.users 
+      WHERE email = ${email} 
+        AND role = 'staff' 
+        AND is_verified = true
     `
 
     if (existing.length > 0) {
@@ -38,58 +33,74 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(password, 10)
 
+    const result = await withTransaction(async (tx) => {
 
-    const result = await sql.begin(async (tx) => {
-      await tx` 
-      update public.users set is_verified = true where email = ${email} and role = 'staff'`
+      const userRes = await tx.query(
+        `UPDATE public.users
+         SET is_verified = true,
+             password_hash = $1
+         WHERE email = $2 AND role = 'staff'
+         RETURNING user_id`,
+        [passwordHash, email]
+      )
 
-      const userRes = await tx`
-        update public.users set password_hash = ${passwordHash} where email = ${email} and role = 'staff'
-        RETURNING user_id
-      `
+      if (userRes.rows.length === 0) {
+        throw new Error("USER_NOT_FOUND")
+      }
 
-      const userId = userRes[0].user_id
+      const userId = userRes.rows[0].user_id
 
-      const staffRes = await tx`
-        INSERT INTO public.staff (user_id, staff_name)
-        VALUES (${userId}, ${staffName})
-        RETURNING staff_id , staff_name
+      const staffRes = await tx.query(
+        `INSERT INTO public.staff (user_id, staff_name)
+         VALUES ($1, $2)
+         RETURNING staff_id, staff_name`,
+        [userId, staffName]
+      )
 
-      `
-
-      return { userId, staffRes: staffRes[0] }
+      return {
+        userId,
+        staff: staffRes.rows[0],
+      }
     })
 
     const payload: StaffJWTPayload = {
       user_id: result.userId,
       role: "staff",
-      staff_name: result.staffRes.staff_name,
-      staff_id: result.staffRes.staff_id
-
-    };
+      staff_name: result.staff.staff_name,
+      staff_id: result.staff.staff_id,
+    }
 
     const token = jwt.sign(payload, process.env.JWT_SECRET!, {
       expiresIn: "7d",
-    });
-
-
+    })
 
     const res = NextResponse.json({
       success: true,
-      userId: result,
+      userId: result.userId,
     })
+
     res.cookies.set("session", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
-    });
+    })
 
     return res
 
-  } catch (err) {
+  } catch (err: any) {
+    if (err.message === "USER_NOT_FOUND") {
+      return NextResponse.json(
+        { error: "المستخدم غير موجود" },
+        { status: 404 }
+      )
+    }
+
     console.error(err)
-    return NextResponse.json({ error: "فشلت عملية إنشاء المستخدم" }, { status: 500 })
+    return NextResponse.json(
+      { error: "فشلت عملية إنشاء المستخدم" },
+      { status: 500 }
+    )
   }
 }

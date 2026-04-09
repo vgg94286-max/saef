@@ -9,7 +9,7 @@ export function StatusBadge({ status }: { status: string }) {
       </span>
     );
 
-  if (status === "تمت الموافقة" || status === "تم رفع التقرير")
+  if (status === "تمت الموافقة" || status === "تم رفع التقرير" || status === "مقبول")
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
         <CheckCircle2 className="h-3 w-3" />
@@ -21,6 +21,30 @@ export function StatusBadge({ status }: { status: string }) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
         <XCircle className="h-3 w-3" />
+        {status}
+      </span>
+    );
+    // أضف هذه الشروط لمكون StatusBadge ليتعرف على حالات الحسابات
+if (status === "مفعل")
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <CheckCircle2 className="h-3 w-3" />
+        {status}
+      </span>
+    );
+
+if (status === "معطل")
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
+        <XCircle className="h-3 w-3" />
+        {status}
+      </span>
+    );
+
+if (status === "قيد المراجعة")
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+        <Clock className="h-3 w-3" />
         {status}
       </span>
     );

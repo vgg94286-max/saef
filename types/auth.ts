@@ -1,5 +1,5 @@
 
-export type UserRole = "admin" | "staff" | "club" | "leave_requester"
+export type UserRole = "admin" | "staff" | "club" | "requester"
 
 export type BaseJWTPayload = {
   user_id: string
@@ -25,15 +25,22 @@ export type AdminJWTPayload = BaseJWTPayload & {
   role: "admin"
 }
 
-export type LeaveRequesterJWTPayload = BaseJWTPayload & {
-  role: "leave_requester"
+export type RequesterJWTPayload = BaseJWTPayload & {
+  role: "requester"
   name: string
   email: string
   national_id: string
+}
+export type NoObjectionJWTPayload = BaseJWTPayload & {
+  role: "requester"
+  name: string
+  email: string
+  
 }
 
 export type AppJWTPayload =
   | ClubJWTPayload
   | StaffJWTPayload
   | AdminJWTPayload
-  | LeaveRequesterJWTPayload
+  | RequesterJWTPayload
+  | NoObjectionJWTPayload

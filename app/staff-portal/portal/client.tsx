@@ -1,8 +1,8 @@
 "use client";
 import { Textarea } from "@/components/ui/textarea";
-import { Send } from "lucide-react";
+import { Globe, Send, Award } from "lucide-react";
 import useSWR from "swr";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Table,
@@ -15,6 +15,7 @@ import {
 import LogoutButton from "@/components/logout-button";
 import { useSWRConfig } from "swr";
 import { useRouter } from 'next/navigation'
+import { useUploadThing } from "@/lib/uploadthing";
 import {
     Dialog,
     DialogContent,
@@ -40,6 +41,10 @@ import {
     Shield,
     MapPin,
     ChevronLeft,
+    CheckCircle2,
+    XCircle,
+    FileUp,
+    Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast"
 
@@ -65,20 +70,40 @@ type VisitRequest = {
     license_end_date: string | null;
     request_type: "visit";
 };
+type CertRequest = {
+    request_id: number;
+    full_name: string;
+    national_id: string;
+    championship_name: string;
+    req_status: string;
+    licence_card: string | null; // أضف هذا الحقل
+    created_at: string;
+    request_type: "cert";
+};
+
+type NoObjRequest = {
+    request_id: number;
+    full_name: string;
+    country_from: string;
+    req_status: string;
+    licence_card: string | null; // أضف هذا الحقل
+    created_at: string;
+    request_type: "no_obj";
+};
 
 type LeaveRequest = {
     request_id: number;
     full_name: string;
     national_id: string;
-    status: string;
-    employer: string | null;
+    status: string; // سيتم استخدامه لعرض req_status من الـ API
+    employment_name: string | null;
+    employment_student_num: number | null;
     phone: string | null;
     email: string | null;
-    height_cm: number | null;
-    weight_kg: number | null;
-    salary: number | null;
-    marital_status: string | null;
-    national_address: string | null;
+    rider_id: number;
+    requester_type: string;
+    region: string | null;
+    cham_name: string | null;
     created_at: string;
     request_type: "leave";
 };
@@ -87,6 +112,7 @@ type Championship = {
     championships_id: number;
     club_name: string;
     date: string;
+    end_date: string | null;
     status: string;
     ambulance: boolean;
     created_at: string;
@@ -97,6 +123,10 @@ type RequestsData = {
     visit_requests: VisitRequest[];
     leave_requests: LeaveRequest[];
     championships: Championship[];
+    cert_requests: CertRequest[];
+    no_obj_requests: NoObjRequest[];
+    permissions: string[];
+    status?: string;
 };
 
 type CommitteeMember = { role: string; staff_name: string };
@@ -119,16 +149,14 @@ type StaffCommittee = {
 const LEAVE_LABELS: Record<string, string> = {
     full_name: "الاسم الكامل",
     national_id: "رقم الهوية",
-    employer: "جهة العمل",
-    phone: "الهاتف",
-    email: "البريد الالكتروني",
-    marital_status: "الحالة الاجتماعية",
-    national_address: "العنوان الوطني",
-    height_cm: "الطول (سم)",
-    weight_kg: "الوزن (كجم)",
-    salary: "الراتب",
-
-
+    employment_name: "مسمى الوظيفة/الجهة",
+    employment_student_num: "الرقم الوظيفي/الجامعي",
+    phone: "رقم الهاتف",
+    email: "البريد الإلكتروني",
+    rider_id: "رقم الفارس",
+    requester_type: "نوع مقدم الطلب",
+    region: "المنطقة الادارية لجهة العمل",
+    cham_name: "اسم البطولة",
 };
 
 /* ---------- Page ---------- */
@@ -147,30 +175,32 @@ export default function StaffPortalPage() {
         );
     }
 
+    useEffect(() => {
     if (!me?.user_id) {
         router.push("/")
     }
+}, [me, router])
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" dir="rtl">
             {/* Header Styled with Federation Colors */}
             {/* Header Styled with Federation Colors */}
-<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-    <div className="flex items-center gap-4">
-        <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-gradient-to-br from-[#2D6A4F] to-[#1B4332] shadow-sm shrink-0">
-            <ClipboardList className="h-6 w-6 text-white" />
-        </div>
-        <div>
-            <h1 className="text-2xl font-black text-[#1B4332]">بوابة الموظف</h1>
-            <p className="text-sm text-muted-foreground">
-                مرحباً، <span className="font-bold text-[#40916C]">{me.staff_name}</span>
-            </p>
-        </div>
-    </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-gradient-to-br from-[#2D6A4F] to-[#1B4332] shadow-sm shrink-0">
+                        <ClipboardList className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-black text-[#1B4332]">بوابة الموظف</h1>
+                        <p className="text-sm text-muted-foreground">
+                            مرحباً، <span className="font-bold text-[#40916C]">{me.staff_name}</span>
+                        </p>
+                    </div>
+                </div>
 
-    {/* Logout Button */}
-    <LogoutButton />
-</div>
+                {/* Logout Button */}
+                <LogoutButton />
+            </div>
 
 
             <Tabs defaultValue="requests" className="w-full">
@@ -209,83 +239,123 @@ function SubmitReportModal({
 }: {
     committee: StaffCommittee | null;
     open: boolean;
-    userId:string;
+    userId: string;
     onOpenChange: (open: boolean) => void;
 }) {
-    const [reportText, setReportText] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const { mutate } = useSWRConfig(); // Import this from 'swr'
-    const {toast} = useToast()
+    const [file, setFile] = useState<File | null>(null);
+    const { toast } = useToast();
+    const { mutate } = useSWRConfig();
 
+    // إعداد أداة الرفع من UploadThing
+    const { startUpload, isUploading } = useUploadThing("staffReportSubmission", {
+        onClientUploadComplete: async (res) => {
+            const fileUrl = res?.[0].ufsUrl;
+            
+            // بعد نجاح رفع الملف، نرسل الرابط إلى قاعدة البيانات
+            try {
+                const response = await fetch("/api/staff/reports", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        visit_request_id: committee?.visit_id,
+                        committee_id: committee?.committee_id,
+                        report_text: fileUrl, // نرسل الرابط بدلاً من النص
+                    }),
+                });
 
- console.log({
-            visit_id: committee?.visit_id,
-            committee_id: committee?.committee_id,
-             report_text: reportText,
-});
+                if (!response.ok) throw new Error("فشل حفظ بيانات التقرير");
 
+                toast({ title: "تم الرفع", description: "تم إرسال التقرير بنجاح" });
+                mutate(`/api/staff/committees?user_id=${userId}`);
+                onOpenChange(false);
+                setFile(null);
+            } catch (err) {
+                toast({ 
+                    title: "خطأ", 
+                    description: "حدث خطأ أثناء حفظ التقرير", 
+                    variant: "destructive" 
+                });
+            }
+        },
+        onUploadError: (error) => {
+            toast({ title: "خطأ في الرفع", description: error.message, variant: "destructive" });
+        },
+    });
 
-    async function handleSubmit() {
-
-        
-
-        if (!committee || !reportText.trim()) return;
-
-       
-        setIsSubmitting(true);
-        try {
-            const res = await fetch("/api/staff/reports", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    visit_request_id: committee.visit_id,
-                    committee_id: committee.committee_id,
-                    report_text: reportText,
-                }),
-            });
-
-            if (!res.ok) throw new Error();
-
-            // Refresh data and close
-            toast({
-      title: "تم",
-      description: "تم رفع التقرير بنجاح",
-    })
-            mutate(`/api/staff/committees?user_id=${userId}`);
-            onOpenChange(false);
-            setReportText("");
-        } catch (err) {
-             toast({
-          title: "خطأ",
-          description: (err as Error).message || "حدث خطأ غير متوقع",
-          variant: "destructive",
-        })
-        } finally {
-            setIsSubmitting(false);
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files?.[0]) {
+            setFile(e.target.files[0]);
         }
+    };
+
+    async function handleUpload() {
+        if (!file || !committee) return;
+        
+        await startUpload([file], { 
+            userId, 
+            committeeId: String(committee.committee_id) 
+        });
     }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg" dir="rtl">
+            <DialogContent className="sm:max-w-md" dir="rtl">
                 <DialogHeader>
-                    <DialogTitle className="text-[#1B4332]">رفع تقرير اللجنة - {committee?.club_name}</DialogTitle>
+                    <DialogTitle className="text-[#1B4332]">رفع تقرير اللجنة النهائي</DialogTitle>
                 </DialogHeader>
-                <div className="py-4">
-                    <Textarea
-                        placeholder="اكتب التقرير الميداني هنا..."
-                        className="min-h-[200px] text-right"
-                        value={reportText}
-                        onChange={(e) => setReportText(e.target.value)}
+                
+                <div className="py-8 flex flex-col items-center justify-center border-2 border-dashed border-emerald-100 rounded-xl bg-emerald-50/30 gap-4">
+                    <input
+                        type="file"
+                        id="report-upload"
+                        className="hidden"
+                        onChange={handleFileChange}
+                        accept=".pdf,.doc,.docx,image/*"
                     />
+                    
+                    {file ? (
+                        <div className="flex flex-col items-center gap-2">
+                            <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                            <p className="text-sm font-bold text-[#1B4332]">{file.name}</p>
+                            <button 
+                                onClick={() => setFile(null)}
+                                className="text-xs text-red-500 underline"
+                            >
+                                تغيير الملف
+                            </button>
+                        </div>
+                    ) : (
+                        <label 
+                            htmlFor="report-upload"
+                            className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-70 transition-opacity"
+                        >
+                            <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                                <FileUp className="h-6 w-6 text-[#1B4332]" />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-sm font-bold text-[#1B4332]">اضغط لاختيار ملف التقرير</p>
+                                <p className="text-[10px] text-muted-foreground">PDF, Word أو صور (حد أقصى 16MB)</p>
+                            </div>
+                        </label>
+                    )}
                 </div>
+
                 <Button
-                    onClick={handleSubmit}
-                    disabled={isSubmitting || !reportText.trim()}
-                    className="bg-[#1B4332] hover:bg-[#2D6A4F] gap-2"
+                    onClick={handleUpload}
+                    disabled={isUploading || !file}
+                    className="bg-[#1B4332] hover:bg-[#2D6A4F] gap-2 w-full h-12"
                 >
-                    {isSubmitting ? "جاري الإرسال..." : "إرسال التقرير النهائي"}
-                    <Send className="h-4 w-4 rotate-180" />
+                    {isUploading ? (
+                        <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            جاري الرفع والمعالجة...
+                        </>
+                    ) : (
+                        <>
+                            إرسال التقرير النهائي
+                            <Send className="h-4 w-4 rotate-180" />
+                        </>
+                    )}
                 </Button>
             </DialogContent>
         </Dialog>
@@ -295,121 +365,252 @@ function SubmitReportModal({
 /* ========== All Requests Section ========== */
 
 function AllRequestsSection({ userId }: { userId: string }) {
-    const { data, isLoading } = useSWR<RequestsData>(`/api/staff/requests?user_id=${userId}`, fetcher);
-    const [activeTab, setActiveTab] = useState<"visit" | "leave" | "championship">("visit");
+    const { data, isLoading, error } = useSWR<RequestsData>(`/api/staff/requests?user_id=${userId}`, fetcher);
+
+    const router = useRouter();
+
+    useEffect(() => {
+        // If the API returns 403 or the status is disabled, send them away
+        if (data?.status === 'معطل' || (error && error.status === 403)) {
+            router.push('/staff-portal/blocked');
+        }
+    }, [data, error, router]);
+
+
+
+    const userPerms = data?.permissions || [];
+
+    const [activeTab, setActiveTab] = useState<"visit" | "leave" | "championship" | "cert" | "no_obj">("visit");
+
+    useEffect(() => {
+        // This checks if the current activeTab is NOT allowed. If so, it switches to the first allowed one.
+        const currentTabPerm = activeTab === 'no_obj' ? 'view_no_objection' :
+            activeTab === 'visit' ? 'view_visit_requests' :
+                activeTab === 'leave' ? 'view_leave_requests' :
+                    activeTab === 'championship' ? 'view_championships' : 'view_request_cert';
+
+        if (userPerms.length > 0 && !userPerms.includes(currentTabPerm)) {
+            if (userPerms.includes('view_visit_requests')) setActiveTab("visit");
+            else if (userPerms.includes('view_leave_requests')) setActiveTab("leave");
+            else if (userPerms.includes('view_championships')) setActiveTab("championship");
+            else if (userPerms.includes('view_request_cert')) setActiveTab("cert");
+            else if (userPerms.includes('view_no_objection')) setActiveTab("no_obj");
+        }
+    }, [userPerms, activeTab]);
 
     const [selectedVisit, setSelectedVisit] = useState<VisitRequest | null>(null);
     const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
     const [selectedChamp, setSelectedChamp] = useState<Championship | null>(null);
+    const [selectedCert, setSelectedCert] = useState<CertRequest | null>(null);
+    const [selectedNoObj, setSelectedNoObj] = useState<NoObjRequest | null>(null);
 
     const counts = useMemo(() => ({
-        visit: data?.visit_requests.length || 0,
-        leave: data?.leave_requests.length || 0,
-        championship: data?.championships.length || 0,
+        // Use ?.length and wrap the whole access to handle the key being missing
+        visit: data?.visit_requests?.length || 0,
+        leave: data?.leave_requests?.length || 0,
+        championship: data?.championships?.length || 0,
+        cert: data?.cert_requests?.length || 0,
+        no_obj: data?.no_obj_requests?.length || 0,
     }), [data]);
 
+    if (isLoading) return <div className="p-10 text-center">جاري التحميل...</div>;
     return (
         <div className="space-y-4">
-            <div className="flex items-center gap-2 overflow-x-auto pb-3 -mx-4 px-4 lg:mx-0 lg:px-0 no-scrollbar">
-                <div className="flex gap-2 min-w-max">
-                    <RequestTypeButton active={activeTab === "visit"} icon={<Eye className="h-4 w-4" />} label="طلبات الزيارة" count={counts.visit} onClick={() => setActiveTab("visit")} />
-                    <RequestTypeButton active={activeTab === "leave"} icon={<UserCheck className="h-4 w-4" />} label="طلبات التفرغ" count={counts.leave} onClick={() => setActiveTab("leave")} />
-                    <RequestTypeButton active={activeTab === "championship"} icon={<Trophy className="h-4 w-4" />} label="طلبات البطولات" count={counts.championship} onClick={() => setActiveTab("championship")} />
+            {userPerms.length === 0 && !isLoading ? (
+                <div className="flex flex-col items-center justify-center p-12 bg-muted/20 rounded-2xl border-2 border-dashed">
+                    <Shield className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
+                    <h3 className="text-lg font-bold text-[#1B4332]">لا توجد صلاحيات وصول</h3>
+                    <p className="text-sm text-muted-foreground">ليس لديك صلاحية لعرض أي طلبات حالياً. يرجى مراجعة المسؤول.</p>
                 </div>
-            </div>
+            ) : (
+                <>
+                    <div className="flex items-center gap-2 overflow-x-auto pb-3 -mx-4 px-4 lg:mx-0 lg:px-0 no-scrollbar">
+                        <div className="flex gap-2 min-w-max">
+                            {userPerms.includes('view_visit_requests') && (
+                                <RequestTypeButton active={activeTab === "visit"} icon={<Eye className="h-4 w-4" />} label="طلبات الزيارة" count={counts.visit} onClick={() => setActiveTab("visit")} />
+                            )}
 
-            <div className="lg:hidden flex items-center gap-1 text-[10px] text-muted-foreground mb-2">
-                <ChevronLeft className="h-3 w-3" />
-                <span>اسحب الجدول لليسار لمشاهدة التفاصيل</span>
-            </div>
+                            {userPerms.includes('view_leave_requests') && (
+                                <RequestTypeButton active={activeTab === "leave"} icon={<UserCheck className="h-4 w-4" />} label="طلبات التفرغ" count={counts.leave} onClick={() => setActiveTab("leave")} />
+                            )}
 
-            <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                    {activeTab === "visit" && (
-                        <Table className="min-w-[700px]">
-                            <TableHeader className="bg-[#f0f7f4]">
-                                <TableRow>
-                                    <TableHead className=" text-[#1B4332] font-bold">اسم النادي</TableHead>
-                                    <TableHead className=" text-[#1B4332] font-bold">تاريخ الطلب</TableHead>
-                                    <TableHead className=" text-[#1B4332] font-bold">انتهاء الرخصة</TableHead>
-                                    <TableHead className=" text-[#1B4332] font-bold">الحالة</TableHead>
-                                    <TableHead className="text-center text-[#1B4332] font-bold">الإجراء</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? <SkeletonRows cols={5} /> : data?.visit_requests.map((vr) => (
-                                    <TableRow key={vr.visit_id} className="hover:bg-[#f8faf9]">
-                                        <TableCell className="font-bold text-[#2D6A4F]">{vr.club_name}</TableCell>
-                                        <TableCell className="text-muted-foreground">{formatDate(vr.created_at)}</TableCell>
-                                        <TableCell className="text-muted-foreground">{vr.license_end_date ? formatDate(vr.license_end_date) : "---"}</TableCell>
-                                        <TableCell><StatusBadge status={vr.status} /></TableCell>
-                                        <TableCell className="text-center">
-                                            <Button variant="outline" size="sm" className="border-[#40916C] text-[#40916C] hover:bg-[#40916C] hover:text-white" onClick={() => setSelectedVisit(vr)}>تفاصيل</Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
+                            {userPerms.includes('view_championships') && (
+                                <RequestTypeButton active={activeTab === "championship"} icon={<Trophy className="h-4 w-4" />} label="طلبات البطولات" count={counts.championship} onClick={() => setActiveTab("championship")} />
+                            )}
 
-                    {activeTab === "leave" && (
-                        <Table className="min-w-[800px]">
-                            <TableHeader className="bg-[#f0f7f4]">
-                                <TableRow>
-                                    <TableHead className=" text-[#1B4332] font-bold">الاسم</TableHead>
-                                    <TableHead className=" text-[#1B4332] font-bold">رقم الهوية</TableHead>
-                                    <TableHead className=" text-[#1B4332] font-bold">جهة العمل</TableHead>
-                                    <TableHead className=" text-[#1B4332] font-bold">تاريخ الطلب</TableHead>
-                                    <TableHead className=" text-[#1B4332] font-bold">الحالة</TableHead>
-                                    <TableHead className="text-center text-[#1B4332] font-bold">الإجراء</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? <SkeletonRows cols={6} /> : data?.leave_requests.map((lr) => (
-                                    <TableRow key={lr.request_id} className="hover:bg-[#f8faf9]">
-                                        <TableCell className="font-bold text-[#2D6A4F]">{lr.full_name}</TableCell>
-                                        <TableCell className="font-mono text-xs text-muted-foreground">{lr.national_id}</TableCell>
-                                        <TableCell>{lr.employer || "---"}</TableCell>
-                                        <TableCell className="text-muted-foreground">{formatDate(lr.created_at)}</TableCell>
-                                        <TableCell><StatusBadge status={lr.status} /></TableCell>
-                                        <TableCell className="text-center">
-                                            <Button variant="outline" size="sm" className="border-[#40916C] text-[#40916C] hover:bg-[#40916C] hover:text-white" onClick={() => setSelectedLeave(lr)}>تفاصيل</Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
+                            {userPerms.includes('view_request_cert') && (
+                                <RequestTypeButton active={activeTab === "cert"} icon={<Award className="h-4 w-4" />} label="طلبات الشهادات" count={counts.cert} onClick={() => setActiveTab("cert")} />
+                            )}
 
-                    {activeTab === "championship" && (
-                        <Table className="min-w-[700px]">
-                            <TableHeader className="bg-[#f0f7f4]">
-                                <TableRow>
-                                    <TableHead className=" text-[#1B4332] font-bold">اسم النادي</TableHead>
-                                    <TableHead className=" text-[#1B4332] font-bold">تاريخ البطولة</TableHead>
+                            {userPerms.includes('view_no_objection') && (
+                                <RequestTypeButton active={activeTab === "no_obj"} icon={<Globe className="h-4 w-4" />} label="عدم الممانعة" count={counts.no_obj} onClick={() => setActiveTab("no_obj")} />
+                            )}
+                        </div>
+                    </div>
 
-                                    <TableHead className=" text-[#1B4332] font-bold">الحالة</TableHead>
-                                    <TableHead className="text-center text-[#1B4332] font-bold">الإجراء</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? <SkeletonRows cols={5} /> : data?.championships.map((ch) => (
-                                    <TableRow key={ch.championships_id} className="hover:bg-[#f8faf9]">
-                                        <TableCell className="font-bold text-[#2D6A4F]">{ch.club_name}</TableCell>
-                                        <TableCell className="text-muted-foreground">{formatDate(ch.date)}</TableCell>
+                    <div className="lg:hidden flex items-center gap-1 text-[10px] text-muted-foreground mb-2">
+                        <ChevronLeft className="h-3 w-3" />
+                        <span>اسحب الجدول لليسار لمشاهدة التفاصيل</span>
+                    </div>
 
-                                        <TableCell><StatusBadge status={ch.status} /></TableCell>
-                                        <TableCell className="text-center">
-                                            <Button variant="outline" size="sm" className="border-[#40916C] text-[#40916C] hover:bg-[#40916C] hover:text-white" onClick={() => setSelectedChamp(ch)}>تفاصيل</Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </div>
-            </div>
+                    <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
+                        <div className="overflow-x-auto">
+                            {activeTab === "visit" && userPerms.includes('view_visit_requests') && (
+                                <Table className="min-w-[700px]">
+                                    <TableHeader className="bg-[#f0f7f4]">
+                                        <TableRow>
+                                            <TableHead className=" text-[#1B4332] font-bold">اسم النادي</TableHead>
+                                            <TableHead className=" text-[#1B4332] font-bold">تاريخ الطلب</TableHead>
+                                            <TableHead className=" text-[#1B4332] font-bold">انتهاء الرخصة</TableHead>
+                                            <TableHead className=" text-[#1B4332] font-bold">الحالة</TableHead>
+                                            <TableHead className="text-center text-[#1B4332] font-bold">الإجراء</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {isLoading ? <SkeletonRows cols={5} /> : data?.visit_requests.map((vr) => (
+                                            <TableRow key={vr.visit_id} className="hover:bg-[#f8faf9]">
+                                                <TableCell className="font-bold text-[#2D6A4F]">{vr.club_name}</TableCell>
+                                                <TableCell className="text-muted-foreground">{formatDate(vr.created_at)}</TableCell>
+                                                <TableCell className="text-muted-foreground">{vr.license_end_date ? formatDate(vr.license_end_date) : "---"}</TableCell>
+                                                <TableCell><StatusBadge status={vr.status} /></TableCell>
+                                                <TableCell className="text-center">
+                                                    <Button variant="outline" size="sm" className="border-[#40916C] text-[#40916C] hover:bg-[#40916C] hover:text-white" onClick={() => setSelectedVisit(vr)}>تفاصيل</Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
 
+                            {activeTab === "leave" && userPerms.includes('view_leave_requests') && (
+                                <Table className="min-w-[800px]">
+                                    <TableHeader className="bg-[#f0f7f4]">
+                                        <TableRow>
+                                            <TableHead className="text-[#1B4332] font-bold">الاسم</TableHead>
+                                            <TableHead className="text-[#1B4332] font-bold">رقم الفارس</TableHead>
+                                            <TableHead className="text-[#1B4332] font-bold">جهة العمل</TableHead>
+                                            <TableHead className="text-[#1B4332] font-bold">تاريخ الطلب</TableHead>
+                                            <TableHead className="text-[#1B4332] font-bold">الحالة</TableHead>
+                                            <TableHead className="text-center text-[#1B4332] font-bold">الإجراء</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {isLoading ? <SkeletonRows cols={6} /> : data?.leave_requests.map((lr) => (
+                                            <TableRow key={lr.request_id} className="hover:bg-[#f8faf9]">
+                                                <TableCell className="font-bold text-[#2D6A4F]">{lr.full_name}</TableCell>
+                                                <TableCell className="font-mono text-xs">{lr.rider_id}</TableCell>
+                                                <TableCell>{lr.employment_name || "---"}</TableCell>
+                                                <TableCell className="text-muted-foreground">{formatDate(lr.created_at)}</TableCell>
+                                                <TableCell><StatusBadge status={lr.status} /></TableCell>
+                                                <TableCell className="text-center">
+                                                    <Button variant="outline" size="sm" className="border-[#40916C] text-[#40916C] hover:bg-[#40916C] hover:text-white" onClick={() => setSelectedLeave(lr)}>تفاصيل</Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+
+
+                            {activeTab === "championship" && userPerms.includes('view_championships') && (
+                                <Table className="min-w-[700px]">
+                                    <TableHeader className="bg-[#f0f7f4]">
+                                        <TableRow>
+                                            <TableHead className=" text-[#1B4332] font-bold">اسم النادي</TableHead>
+                                            <TableHead className=" text-[#1B4332] font-bold">تاريخ البطولة</TableHead>
+
+                                            <TableHead className=" text-[#1B4332] font-bold">الحالة</TableHead>
+                                            <TableHead className="text-center text-[#1B4332] font-bold">الإجراء</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {isLoading ? <SkeletonRows cols={5} /> : data?.championships.map((ch) => (
+                                            <TableRow key={ch.championships_id} className="hover:bg-[#f8faf9]">
+                                                <TableCell className="font-bold text-[#2D6A4F]">{ch.club_name}</TableCell>
+                                                <TableCell className="text-muted-foreground text-xs">
+                                                    <div className="flex flex-col gap-0.5">
+                                                        {/* التحقق من وجود التاريخ الأول */}
+                                                        <span>
+                                                            من: {ch.date ? formatDate(ch.date) : ""}
+                                                        </span>
+                                                        {/* التحقق من وجود تاريخ الانتهاء */}
+                                                        <span>
+                                                            إلى: {ch.end_date ? formatDate(ch.end_date) : ""}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+
+                                                <TableCell><StatusBadge status={ch.status} /></TableCell>
+                                                <TableCell className="text-center">
+                                                    <Button variant="outline" size="sm" className="border-[#40916C] text-[#40916C] hover:bg-[#40916C] hover:text-white" onClick={() => setSelectedChamp(ch)}>تفاصيل</Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                            {/* جدول طلبات الشهادات */}
+                            {activeTab === "cert" && userPerms.includes('view_request_cert') && (
+                                <Table className="min-w-[700px]">
+                                    <TableHeader className="bg-[#f0f7f4]">
+                                        <TableRow>
+                                            <TableHead className="text-[#1B4332] font-bold">الاسم</TableHead>
+                                            <TableHead className="text-[#1B4332] font-bold">البطولة</TableHead>
+                                            <TableHead className="text-[#1B4332] font-bold">الحالة</TableHead>
+                                            <TableHead className="text-center text-[#1B4332] font-bold">الإجراء</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {isLoading ? <SkeletonRows cols={4} /> : data?.cert_requests.map((cr) => (
+                                            <TableRow key={cr.request_id} className="hover:bg-[#f8faf9]">
+                                                <TableCell className="font-bold text-[#2D6A4F]">{cr.full_name}</TableCell>
+                                                <TableCell>{cr.championship_name}</TableCell>
+                                                <TableCell><StatusBadge status={cr.req_status} /></TableCell>
+                                                <TableCell className="text-center">
+                                                    <Button variant="outline" size="sm" className="border-[#40916C] text-[#40916C] hover:bg-[#40916C] hover:text-white" onClick={() => setSelectedCert(cr)}>تفاصيل</Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+
+                            {/* جدول طلبات عدم الممانعة */}
+                            {activeTab === "no_obj" && userPerms.includes('view_no_objection') && (
+                                <Table className="min-w-[700px]">
+                                    <TableHeader className="bg-[#f0f7f4]">
+                                        <TableRow>
+                                            <TableHead className="text-[#1B4332] font-bold">الاسم</TableHead>
+                                            <TableHead className="text-[#1B4332] font-bold">الدولة</TableHead>
+                                            <TableHead className="text-[#1B4332] font-bold">الحالة</TableHead>
+                                            <TableHead className="text-center text-[#1B4332] font-bold">الإجراء</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {isLoading ? <SkeletonRows cols={4} /> : data?.no_obj_requests.map((nr) => (
+                                            <TableRow key={nr.request_id} className="hover:bg-[#f8faf9]">
+                                                <TableCell className="font-bold text-[#2D6A4F]">{nr.full_name}</TableCell>
+                                                <TableCell>{nr.country_from}</TableCell>
+                                                <TableCell><StatusBadge status={nr.req_status} /></TableCell>
+                                                <TableCell className="text-center">
+                                                    <Button variant="outline" size="sm" className="border-[#40916C] text-[#40916C] hover:bg-[#40916C] hover:text-white" onClick={() => setSelectedNoObj(nr)}>تفاصيل</Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                            {!isLoading && counts[activeTab === 'no_obj' ? 'no_obj' : activeTab] === 0 && (
+                                <div className="text-center py-20 text-muted-foreground">
+                                    لا توجد طلبات حالية في هذا القسم
+                                </div>
+                            )}
+
+
+                        </div>
+                    </div>
+                </>
+            )}
             <VisitDetailDialog visit={selectedVisit} onClose={() => setSelectedVisit(null)} />
             <LeaveDetailDialog leave={selectedLeave} onClose={() => setSelectedLeave(null)} />
             <ChampDetailDialog
@@ -417,6 +618,9 @@ function AllRequestsSection({ userId }: { userId: string }) {
                 open={!!selectedChamp}
                 onOpenChange={(open) => !open && setSelectedChamp(null)}
             />
+            <CertDetailDialog cert={selectedCert} onClose={() => setSelectedCert(null)} />
+            <NoObjDetailDialog noObj={selectedNoObj} onClose={() => setSelectedNoObj(null)} />
+
         </div>
     );
 }
@@ -562,24 +766,105 @@ function LeaveDetailDialog({ leave, onClose }: { leave: LeaveRequest | null; onC
     return (
         <Dialog open={!!leave} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto" dir="rtl">
-                <DialogHeader>
+                <DialogHeader className="border-b pb-4">
                     <DialogTitle className="flex items-center gap-2 text-[#1B4332]">
-                        <UserCheck className="h-5 w-5" /> تفاصيل طلب التفرغ
+                        <UserCheck className="h-5 w-5" /> تفاصيل طلب التفرغ لمشاركة رياضية
                     </DialogTitle>
                 </DialogHeader>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 py-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 py-6">
+                    {/* عرض الحقول بناءً على المسميات الجديدة */}
                     {Object.entries(LEAVE_LABELS).map(([key, label]) => (
-                        <InfoItem key={key} label={label} value={String(leave[key as keyof LeaveRequest] || "---")} />
+                        <InfoItem
+                            key={key}
+                            label={label}
+                            value={leave[key as keyof LeaveRequest] ? String(leave[key as keyof LeaveRequest]) : "---"}
+                        />
                     ))}
-                    <InfoItem label="الحالة"><StatusBadge status={leave.status} /></InfoItem>
-                    <InfoItem label="تاريخ الطلب" value={formatDate(leave.created_at)} />
+
+                    <Separator className="sm:col-span-2" />
+
+                    <div className="flex items-center justify-between sm:col-span-2 bg-[#f8faf9] p-4 rounded-xl border border-dashed">
+                        <InfoItem label="حالة الطلب الحالي">
+                            <StatusBadge status={leave.status} />
+                        </InfoItem>
+                        <InfoItem label="تاريخ التقديم" value={formatDate(leave.created_at)} />
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+function CertDetailDialog({ cert, onClose }: { cert: CertRequest | null; onClose: () => void }) {
+    if (!cert) return null;
+    return (
+        <Dialog open={!!cert} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[500px]" dir="rtl">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-[#1B4332]">
+                        <Award className="h-5 w-5" /> تفاصيل طلب الشهادة
+                    </DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-1 gap-4 py-4 text-right">
+                    <InfoItem label="الاسم الكامل" value={cert.full_name} />
+                    <InfoItem label="رقم الهوية" value={cert.national_id} />
+
+                    <div className="bg-[#f0f7f4] p-3 rounded-lg border border-[#B7E4C7]">
+                        <InfoItem label="اسم البطولة" value={cert.championship_name} />
+                    </div>
+
+                    {/* عرض زر ملف بطاقة الفارس إذا توفر */}
+                    {cert.licence_card && (
+                        <div className="pt-2">
+                            <p className="text-[10px] text-[#40916C] uppercase font-black mb-1">المرفقات</p>
+                            <a
+                                href={cert.licence_card}
+                                target="_blank"
+                                className="flex items-center justify-center gap-2 w-full p-3 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors border border-slate-200 text-sm font-bold text-slate-700"
+                            >
+                                <ExternalLink className="h-4 w-4" /> عرض ملف بطاقة الفارس
+                            </a>
+                        </div>
+                    )}
+
+                    <div className="flex justify-between items-center border-t pt-4 mt-2">
+                        <InfoItem label="تاريخ الطلب" value={formatDate(cert.created_at)} />
+                        <InfoItem label="الحالة"><StatusBadge status={cert.req_status} /></InfoItem>
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>
     );
 }
 
-import { Award } from "lucide-react"; // Added Award icon
+function NoObjDetailDialog({ noObj, onClose }: { noObj: NoObjRequest | null; onClose: () => void }) {
+    if (!noObj) return null;
+    return (
+        <Dialog open={!!noObj} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[500px]" dir="rtl">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-[#1B4332]">
+                        <Globe className="h-5 w-5" /> تفاصيل طلب عدم الممانعة
+                    </DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-1 gap-4 py-4 text-right">
+                    <InfoItem label="اسم الفارس" value={noObj.full_name} />
+                    <InfoItem label="الدولة المتوجه إليها" value={noObj.country_from} />
+                    {/* زر عرض نسخة الجواز */}
+                    {noObj.licence_card && (
+                        <a href={noObj.licence_card} target="_blank" className="flex items-center justify-center gap-2 w-full p-3 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors border border-slate-200 text-sm font-bold text-slate-700">
+                            <ExternalLink className="h-4 w-4" /> عرض بطاقة الفارس
+                        </a>
+                    )}
+                    <div className="flex justify-between items-center border-t pt-4 mt-2">
+                        <InfoItem label="تاريخ الطلب" value={formatDate(noObj.created_at)} />
+                        <InfoItem label="الحالة"><StatusBadge status={noObj.req_status} /></InfoItem>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 
 function ChampDetailDialog({
     champId,
@@ -618,7 +903,14 @@ function ChampDetailDialog({
                             <InfoItem label="الحالة">
                                 <StatusBadge status={data.status} />
                             </InfoItem>
-                            <InfoItem label="تاريخ البطولة" value={formatDate(data.date)} />
+                            <div className="col-span-2 sm:col-span-1">
+                                <p className="text-[10px] text-[#40916C] uppercase font-black tracking-wider mb-1">فترة البطولة</p>
+                                <div className="flex items-center gap-2 text-sm font-semibold text-[#1B4332]">
+                                    <span>{data.date ? formatDate(data.date) : ""}</span>
+                                    <span className="text-muted-foreground font-normal">إلى</span>
+                                    <span>{data.end_date ? formatDate(data.end_date) : ""}</span>
+                                </div>
+                            </div>
                             <InfoItem label="إسعاف">
                                 <span className={`inline-flex items-center gap-1.5 text-sm font-bold ${data.ambulance ? "text-emerald-600" : "text-red-500"}`}>
                                     <Ambulance className="h-4 w-4" />
@@ -705,8 +997,8 @@ function RequestTypeButton({ active, icon, label, count, onClick }: any) {
         <button
             onClick={onClick}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${active
-                    ? "bg-[#1B4332] text-white border-[#1B4332] shadow-md"
-                    : "bg-white text-muted-foreground border-border hover:border-[#40916C]/50 hover:text-[#1B4332]"
+                ? "bg-[#1B4332] text-white border-[#1B4332] shadow-md"
+                : "bg-white text-muted-foreground border-border hover:border-[#40916C]/50 hover:text-[#1B4332]"
                 }`}
         >
             {icon} {label}

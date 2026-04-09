@@ -8,7 +8,7 @@ export default async function LeaveReqPage() {
  const session = await getSession();
 
   if (!session) {
-    redirect("/leave-request");
+    redirect("/requests");
   }
 
     return <LeaveRequestPage />

@@ -15,15 +15,7 @@ import { useRouter } from "next/navigation"
 const schema = z.object({
   staffName: z.string().min(2, "اسم الموظف مطلوب"),
 
-  email: z
-    .string()
-    .email("بريد غير صالح")
-    .refine((email) => {
-      const domain = email.split("@")[1]
-      return domain === "saef.org.sa"
-    }, {
-      message: "يجب استخدام بريد saef.org.sa فقط",
-    }),
+  email: z.string().email("يرجى إدخال بريد إلكتروني صحيح"),
 
   password: z.string().min(8, "8 أحرف على الأقل"),
 })

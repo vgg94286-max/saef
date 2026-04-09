@@ -8,6 +8,12 @@ export async function PATCH(
   const { id } = await params;
 
   try {
+    const user_id = await sql`
+      SELECT user_id , license_file FROM public.visit_requests WHERE visit_id = ${id}
+    `;
+    const email = await sql`
+      SELECT email FROM public.users WHERE user_id = ${user_id[0].user_id}
+    `;
     await sql`
       UPDATE public.visit_requests 
       SET status = 'تمت الموافقة' 

@@ -20,7 +20,7 @@ import {
 import { StatusBadge } from "@/components/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Trophy, FileText, CheckCircle2, XCircle, Ambulance, Award, Users } from "lucide-react";
+import { Trophy, FileText, CheckCircle2, XCircle, Ambulance, Award, Users, Loader2 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -28,6 +28,7 @@ type Championship = {
   championships_id: string;
   club_name: string;
   date: string;
+  end_date: string | null;
   status: string;
   created_at: string;
 };
@@ -87,8 +88,16 @@ export default function ChampionshipsPage() {
               data.map((ch) => (
                 <TableRow key={ch.championships_id}>
                   <TableCell className="px-4 font-medium">{ch.club_name}</TableCell>
-                  <TableCell className="px-4 text-muted-foreground">
-                    {new Date(ch.date).toISOString().split("T")[0]}
+                  {/* داخل قسم الـ TableBody */}
+                  <TableCell className="px-4 text-muted-foreground text-xs">
+                    <div className="flex flex-col gap-0.5">
+                      <span>
+                        من: {ch.date ? new Date(ch.date).toISOString().split("T")[0] : ""}
+                      </span>
+                      <span>
+                        إلى: {ch.end_date ? new Date(ch.end_date).toISOString().split("T")[0] : ""}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell className="px-4"><StatusBadge status={ch.status} /></TableCell>
                   <TableCell className="px-4">
@@ -141,16 +150,23 @@ function ChampDetailModal({
     fetcher
   );
   const [acting, setActing] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [showRejectInput, setShowRejectInput] = useState(false);
 
   async function handleAction(action: "approve" | "reject") {
     if (!champId) return;
+    if (action === "reject" && !rejectReason.trim()) return;
+
     setActing(true);
     try {
       await fetch(`/api/admin/championships/${champId}/${action}`, {
         method: "PATCH",
+        body: JSON.stringify({ note: action === "reject" ? rejectReason : null }),
       });
       mutate("/api/admin/championships");
       onOpenChange(false);
+      setShowRejectInput(false);
+      setRejectReason("");
     } finally {
       setActing(false);
     }
@@ -181,9 +197,17 @@ function ChampDetailModal({
                 <p className="text-xs text-muted-foreground mb-1">الحالة</p>
                 <StatusBadge status={data.status} />
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">تاريخ البطولة</p>
-                <p className="text-sm">{new Date(data.date).toISOString().split("T")[0]}</p>
+              <div className="col-span-2 sm:col-span-1">
+                <p className="text-xs text-muted-foreground mb-1">فترة البطولة</p>
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <span className="bg-secondary px-2 py-0.5 rounded">
+                    {data.date ? new Date(data.date).toISOString().split("T")[0] : ""}
+                  </span>
+                  <span className="text-muted-foreground">إلى</span>
+                  <span className="bg-secondary px-2 py-0.5 rounded">
+                    {data.end_date ? new Date(data.end_date).toISOString().split("T")[0] : ""}
+                  </span>
+                </div>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">اسعاف</p>
@@ -205,10 +229,7 @@ function ChampDetailModal({
               {data.judges.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {data.judges.map((j) => (
-                    <span
-                      key={j.judge_id}
-                      className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium"
-                    >
+                    <span key={j.judge_id} className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium">
                       {j.judge_name}
                     </span>
                   ))}
@@ -226,31 +247,23 @@ function ChampDetailModal({
                 <Award className="h-3.5 w-3.5" />
                 الاشواط والجوائز
               </p>
-              {data.rounds.length > 0 ? (
-                <div className="flex flex-col gap-3">
-                  {data.rounds.map((round) => (
-                    <div key={round.round_id} className="rounded-lg border border-border p-3">
-                      <p className="text-sm font-semibold mb-2">{round.name}</p>
-                      {round.prizes.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {round.prizes.map((prize) => (
-                            <div key={prize.prize_id} className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">{prize.position}</span>
-                              <span className="font-semibold text-foreground">
-                                {Number(prize.amount).toLocaleString("ar-SA")} ر.س
-                              </span>
-                            </div>
-                          ))}
+              <div className="flex flex-col gap-3">
+                {data.rounds.map((round) => (
+                  <div key={round.round_id} className="rounded-lg border border-border p-3">
+                    <p className="text-sm font-semibold mb-2">{round.name}</p>
+                    <div className="flex flex-col gap-1">
+                      {round.prizes.map((prize) => (
+                        <div key={prize.prize_id} className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">{prize.position}</span>
+                          <span className="font-semibold text-foreground">
+                            {Number(prize.amount).toLocaleString("ar-SA")} ر.س
+                          </span>
                         </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">لا يوجد جوائز</p>
-                      )}
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">لا يوجد اشواط</p>
-              )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Total */}
@@ -261,26 +274,63 @@ function ChampDetailModal({
               </span>
             </div>
 
-            {/* Actions */}
+            {/* Actions Section */}
             {data.status === "قيد المراجعة" && (
-              <div className="flex items-center gap-3 pt-2 border-t border-border">
-                <Button
-                  onClick={() => handleAction("approve")}
-                  disabled={acting}
-                  className="gap-1.5 flex-1"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  قبول
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => handleAction("reject")}
-                  disabled={acting}
-                  className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                >
-                  <XCircle className="h-4 w-4" />
-                  رفض
-                </Button>
+              <div className="pt-4 border-t border-border">
+                {!showRejectInput ? (
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={() => handleAction("approve")}
+                      disabled={acting}
+                      className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700 font-bold"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      قبول البطولة
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowRejectInput(true)}
+                      disabled={acting}
+                      className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <XCircle className="h-4 w-4" />
+                      رفض الطلب
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-red-600">سبب رفض البطولة *</label>
+                      <textarea
+                        required
+                        className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200 focus:ring-1 focus:ring-red-500 outline-none"
+                        placeholder="وضح للنادي أسباب رفض إقامة البطولة..."
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="destructive"
+                        className="flex-1 font-bold"
+                        onClick={() => handleAction("reject")}
+                        disabled={acting || !rejectReason.trim()}
+                      >
+                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض وإخطار النادي"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setShowRejectInput(false);
+                          setRejectReason("");
+                        }}
+                        disabled={acting}
+                      >
+                        إلغاء
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

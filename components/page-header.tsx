@@ -11,7 +11,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description }: PageHeaderProps) {
   return (
-    <header className="border-b border-border bg-card">
+    <header className="border-border bg-card">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between py-4">
           <Link href="/" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
@@ -19,8 +19,8 @@ export function PageHeader({ title, description }: PageHeaderProps) {
             <span className="text-sm font-medium">العودة للرئيسية</span>
           </Link>
           <Image
-            src="/SAEF LOGO Main Version Arabic English Gradient RGB.png"
-            alt="الاتحاد السعودي للفروسية"
+            src="/Saef.png"
+            alt="الاتحاد السعودي للفروسية والبولو"
             width={200}
             height={200}
             className="h-25 w-25"

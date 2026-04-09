@@ -35,7 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Users, Plus, UserPlus } from "lucide-react";
+import { Users, Plus, UserPlus , ExternalLink , FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -349,20 +349,26 @@ function ActiveCommitteesTab() {
                 </TableCell>
 
                 <TableCell className="px-4">
-  {cm.status === "تم رفع التقرير" ? (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button size="sm" variant="outline">
-          عرض التقرير
-        </Button>
-      </PopoverTrigger>
-
-      <PopoverContent className="w-80 text-sm leading-relaxed">
-        {cm.report_text || "لا يوجد تقرير"}
-      </PopoverContent>
-    </Popover>
+  {cm.status === "تم رفع التقرير" && cm.report_text ? ( // تأكد من استخدام report_url
+    <Button 
+      size="sm" 
+      variant="outline" 
+      className="gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+      asChild
+    >
+      <a 
+        href={cm.report_text} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="flex items-center gap-1.5"
+      >
+        <FileText className="h-3.5 w-3.5" />
+        عرض التقرير
+        <ExternalLink className="h-3 w-3 opacity-50" />
+      </a>
+    </Button>
   ) : (
-    <span className="text-muted-foreground">-</span>
+    <span className="text-muted-foreground text-xs italic">قيد الانتظار</span>
   )}
 </TableCell>
               </TableRow>

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { sql } from "@/lib/db"
+import { withTransaction } from "@/lib/db"
 
 /* ---------- Validation ---------- */
 const prizeSchema = z.object({
@@ -10,7 +10,6 @@ const prizeSchema = z.object({
 
 const roundSchema = z.object({
   name: z.string().min(1),
-
   prizes: z.array(prizeSchema).min(1),
 })
 
@@ -21,6 +20,7 @@ const judgeSchema = z.object({
 const bodySchema = z.object({
   club_id: z.string().min(1),
   date: z.string().min(1),
+  end_date: z.string().min(1),  
   ambulance: z.boolean(),
   agreed_on_terms: z.boolean().refine((v) => v, "Must agree to terms"),
   judges: z.array(judgeSchema).min(1),
@@ -32,35 +32,63 @@ export async function POST(request: Request) {
     const json = await request.json()
     const data = bodySchema.parse(json)
 
-    const championshipId = await sql.begin(async (tx) => {
+    const championshipId = await withTransaction(async (tx) => {
+
       /* championship */
-      const [championship] = await tx`
-        INSERT INTO public.championships (club_id, date, ambulance, agreed_on_terms)
-        VALUES (${data.club_id}, ${data.date}, ${data.ambulance}, ${data.agreed_on_terms})
-        RETURNING championships_id
-      `
+      const championshipRes = await tx.query(
+        `INSERT INTO public.championships (club_id, date, end_date, ambulance, agreed_on_terms)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING championships_id`,
+        [data.club_id, data.date, data.end_date, data.ambulance, data.agreed_on_terms]
+      )
 
-      const champId = championship.championships_id
+      const champId = championshipRes.rows[0].championships_id
 
-      /* judges */
-      await tx`
-        INSERT INTO public.championship_judges (championship_id, judge_name)
-        VALUES ${sql(data.judges.map(j => [champId, j.judge_name]))}
-      `
+      /* ---------- judges (SINGLE QUERY) ---------- */
+      if (data.judges.length > 0) {
+        const values: any[] = []
+        const placeholders: string[] = []
 
-      /*  rounds + prizes */
+        data.judges.forEach((j, i) => {
+          const base = i * 2
+          placeholders.push(`($${base + 1}, $${base + 2})`)
+          values.push(champId, j.judge_name)
+        })
+
+        await tx.query(
+          `INSERT INTO public.championship_judges (championship_id, judge_name)
+           VALUES ${placeholders.join(", ")}`,
+          values
+        )
+      }
+
+      /* ---------- rounds + prizes ---------- */
       for (const round of data.rounds) {
-        const [r] = await tx`
-          INSERT INTO public.rounds (championship_id, name)
-          VALUES (${champId}, ${round.name})
-          RETURNING round_id
-        `
+        const roundRes = await tx.query(
+          `INSERT INTO public.rounds (championship_id, name)
+           VALUES ($1, $2)
+           RETURNING round_id`,
+          [champId, round.name]
+        )
 
+        const roundId = roundRes.rows[0].round_id
+
+        /* prizes (SINGLE QUERY) */
         if (round.prizes.length > 0) {
-          await tx`
-            INSERT INTO public.prizes (round_id, position, amount)
-            VALUES ${sql(round.prizes.map(p => [r.round_id, p.position, p.amount]))}
-          `
+          const values: any[] = []
+          const placeholders: string[] = []
+
+          round.prizes.forEach((p, i) => {
+            const base = i * 3
+            placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3})`)
+            values.push(roundId, p.position, p.amount)
+          })
+
+          await tx.query(
+            `INSERT INTO public.prizes (round_id, position, amount)
+             VALUES ${placeholders.join(", ")}`,
+            values
+          )
         }
       }
 

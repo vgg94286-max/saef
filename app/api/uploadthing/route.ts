@@ -6,6 +6,56 @@ import crypto from "crypto";
 const f = createUploadthing();
 
 const uploadRouter = {
+  
+
+  knightLicenseSubmission: f({
+  blob: { maxFileCount: 1, maxFileSize: "32MB" },
+})
+  .input(
+    z.object({
+      userId: z.string(),
+      email: z.string().email(),
+      fullName: z.string(),
+    })
+  )
+  .middleware(async ({ input, files }) => {
+    const ALLOWED_LICENSE_TYPES = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "image/jpeg",
+      "image/png",
+    ];
+
+    if (files.length === 0) {
+      throw new Error("No file uploaded");
+    }
+
+    const file = files[0];
+
+    if (!ALLOWED_LICENSE_TYPES.includes(file.type)) {
+      throw new Error("Unsupported license file type");
+    }
+
+    const random = crypto.randomBytes(8).toString("hex");
+
+    return {
+      ...input,
+      file: {
+        ...file,
+        name: `uploads/${input.userId}/license-${random}-${file.name}`,
+      },
+    };
+  })
+  .onUploadComplete(({ metadata, file }) => {
+    return {
+      fileUrl: file.ufsUrl,
+      uploadedBy: metadata.userId,
+      email: metadata.email,
+      
+    };
+  }),
+
   clubSubmission: f({
     image: { maxFileCount: 10, maxFileSize: "32MB" }, // club images
     blob: { maxFileCount: 1, maxFileSize: "32MB" },   // license
@@ -61,6 +111,31 @@ const uploadRouter = {
         email: metadata.email,
       };
     }),
+    staffReportSubmission: f({
+    blob: { maxFileCount: 1, maxFileSize: "16MB" },
+  })
+    .input(
+      z.object({
+        userId: z.string(),
+        committeeId: z.string(),
+      })
+    )
+    .middleware(async ({ input, files }) => {
+      const file = files[0];
+      const random = crypto.randomBytes(4).toString("hex");
+      
+      return {
+        ...input,
+        file: {
+          ...file,
+          name: `reports/${input.committeeId}/report-${random}-${file.name}`,
+        },
+      };
+    })
+    .onUploadComplete(({ metadata, file }) => {
+      return { fileUrl: file.ufsUrl, metadata };
+    }),
+
 };
 
 export type OurFileRouter = typeof uploadRouter;

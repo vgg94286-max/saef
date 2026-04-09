@@ -7,8 +7,14 @@ export async function PATCH(
 ) {
   const { id } = await params;
   try {
+    const { note } = await _req.json();
+
+    if (!note) {
+      return NextResponse.json({ error: "سبب الرفض مطلوب" }, { status: 400 });
+    }
     await sql 
-      `UPDATE public.championships SET status = 'مرفوض' WHERE championships_id = ${id}`;
+      `UPDATE public.championships SET status = 'مرفوض', 
+          note = ${note} WHERE championships_id = ${id}`;
       
     
     return NextResponse.json({ success: true });

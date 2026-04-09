@@ -1,7 +1,7 @@
 import { sql } from "@/lib/db";
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { LeaveRequesterJWTPayload } from "@/types/auth";
+import { RequesterJWTPayload } from "@/types/auth";
 
 export async function POST(req: Request) {
   try {
@@ -27,9 +27,9 @@ export async function POST(req: Request) {
 
     const user = result[0];
 
-    const payload: LeaveRequesterJWTPayload = {
+    const payload: RequesterJWTPayload = {
       user_id: user.user_id,
-      role: "leave_requester",
+      role: "requester",
       national_id: user.national_id,
       name: user.full_name,
       email: user.email,
@@ -44,6 +44,7 @@ export async function POST(req: Request) {
         user_id: user.user_id,
         email: user.email,
         name: user.full_name,
+        national_id: user.national_id,
       },
     });
 

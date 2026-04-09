@@ -29,36 +29,31 @@ export default async function Page() {
 
   const userId = session.user_id;
 
-  // Get club info
-  const club: Club[] = await sql`
-    SELECT club_id, club_name, account_status
-    FROM public.clubs
-    WHERE user_id = ${userId}
-  `;
+ const club = (await sql`
+  SELECT club_id, club_name, account_status
+  FROM public.clubs
+  WHERE user_id = ${userId}
+`) as Club[];
 
-  if (!club[0]) {
-    redirect("/clubs");
-  }
+if (!club[0]) {
+  redirect("/clubs");
+}
 
-  const clubId = club[0].club_id;
+const clubId = club[0].club_id;
 
-  // Get visit requests
-  const visitRequests: VisitRequest[] = await sql`
-    SELECT status, created_at
-    FROM public.visit_requests
-    WHERE club_id = ${clubId}
-    ORDER BY created_at DESC
-  `;
+const visitRequests = (await sql`
+  SELECT status, created_at
+  FROM public.visit_requests
+  WHERE club_id = ${clubId}
+  ORDER BY created_at DESC
+`) as VisitRequest[];
 
-  // Get championships
-  const tournaments: Tournament[] = await sql`
-    SELECT status, created_at
-    FROM public.championships
-    WHERE club_id = ${clubId}
-    ORDER BY created_at DESC
-  `;
-
-  
+const tournaments = (await sql`
+  SELECT status, created_at
+  FROM public.championships
+  WHERE club_id = ${clubId}
+  ORDER BY created_at DESC
+`) as Tournament[];
   return (
     <ClubDashboard
       data={{

@@ -10,18 +10,31 @@ import {
   Users,
   Briefcase,
   Menu,
-  X,
+  Globe,
+  Award,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription
+} from "@/components/ui/sheet";
 
 const NAV_ITEMS = [
   { href: "/admin/visit-requests", label: "طلبات الزيارة", icon: Eye },
   { href: "/admin/leave-requests", label: "طلبات التفرغ", icon: UserCheck },
+  { href: "/admin/request_cert", label: "طلبات المشاهد", icon: Award },
+  { href: "/admin/request_no_obj", label: "طلبات عدم الممانعة", icon: Globe },
   { href: "/admin/championships", label: "طلبات البطولات الخاصة", icon: Trophy },
+  { href: "/admin/clubs", label: "الأندية", icon: Building2 },
   { href: "/admin/committees", label: "اللجان", icon: Users },
   { href: "/admin/staff", label: "موظفي الاتحاد", icon: Briefcase },
+  { href: "/admin/public_champ", label: "البطولات المعتمدة", icon: Trophy },
 ];
 
 export function AdminSidebar() {
@@ -79,7 +92,7 @@ export function AdminSidebar() {
       {/* Footer */}
       <div className="border-t border-sidebar-border px-5 py-4">
         <p className="text-[10px] text-sidebar-foreground/40 text-center">
-          الاتحاد السعودي للفروسية
+          الاتحاد السعودي للفروسية والبولو
         </p>
       </div>
     </div>
@@ -96,7 +109,13 @@ export function AdminSidebar() {
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="p-0 w-64 border-l-sidebar-border">
-             <SidebarContent />
+            {/* الإصلاح هنا: إضافة Header مع عنوان ووصف مخفيين */}
+            <SheetHeader className="sr-only">
+              <SheetTitle>قائمة التنقل</SheetTitle>
+              <SheetDescription>قائمة روابط الإدارة للوصول السريع</SheetDescription>
+            </SheetHeader>
+
+            <SidebarContent />
           </SheetContent>
         </Sheet>
       </div>

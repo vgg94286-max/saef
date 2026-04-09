@@ -8,10 +8,10 @@ import { Card, CardContent } from "@/components/ui/card"
 export default function LeaveRequestPageLogged({ session }: { session: any }) {
   
   const leaverEmail =
-    session?.role === "leave_requester" ? session?.email : ""
+    session?.role === "requester" ? session?.email : ""
 
   const leaverNationalId =
-    session?.role === "leave_requester" ? session?.national_id : ""
+    session?.role === "requester" ? session?.national_id : ""
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

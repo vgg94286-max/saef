@@ -8,9 +8,15 @@ export async function PATCH(
   const { id } = await params;
 
   try {
+
+    const { note } = await _req.json();
+    
+        if (!note) {
+          return NextResponse.json({ error: "سبب الرفض مطلوب" }, { status: 400 });
+        }
     await sql`
       UPDATE public.leave_request
-      SET req_status = 'مرفوض'
+      SET req_status = 'مرفوض', note = ${note}
       WHERE request_id = ${id}
     `;
 

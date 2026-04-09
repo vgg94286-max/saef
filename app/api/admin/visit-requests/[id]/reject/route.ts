@@ -6,11 +6,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const { note } = await _req.json();
 
   try {
     await sql`
       UPDATE public.visit_requests 
-      SET status = 'مرفوض' 
+      SET status = 'مرفوض',
+      note = ${note}
       WHERE visit_id = ${id}
     `;
      const club_id = await sql`

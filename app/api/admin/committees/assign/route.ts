@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sql } from "@/lib/db";
+import { sql, withTransaction } from "@/lib/db";
 
 export async function POST(req: Request) {
   const { visit_request_id, leader_user_id, member_user_ids } = await req.json();
@@ -19,39 +19,63 @@ export async function POST(req: Request) {
     );
   }
   try {
-    // Use a transaction to ensure atomicity
-    await sql.begin(async (tx) => {
-      // Create committee
-      const [committee] = await tx`
-        INSERT INTO public.committees (visit_request_id, status, created_at)
-        VALUES (${visit_request_id}, 'بانتظار زيارة اللجنة', NOW())
-        RETURNING committee_id
-      `;
-      const committeeId = committee.committee_id;
+    await withTransaction(async (client) => {
+  // Check existing
+  const existing = await client.query(
+    `SELECT committee_id FROM public.committees 
+     WHERE visit_request_id = $1 AND status = 'بانتظار زيارة اللجنة'`,
+    [visit_request_id]
+  );
 
-      // Add leader
-      await tx`
-        INSERT INTO public.committee_members (committee_id, user_id, role)
-        VALUES (${committeeId}, ${leader_user_id}, 'رئيس')
-      `;
+  if (existing.rows.length > 0) {
+    throw new Error("ALREADY_EXISTS");
+  }
 
-      // Add members in a single query
-      if (member_user_ids.length > 0) {
-        await tx`
-    INSERT INTO public.committee_members (committee_id, user_id, role)
-    VALUES ${sql(member_user_ids.map(userId => [committeeId, userId, 'عضو']))}
-  `;
-      }
+  // Create committee
+  const committeeRes = await client.query(
+    `INSERT INTO public.committees (visit_request_id, status, created_at)
+     VALUES ($1, 'بانتظار زيارة اللجنة', NOW())
+     RETURNING committee_id`,
+    [visit_request_id]
+  );
 
-      // Update visit request status
-      await tx`
-        UPDATE public.visit_requests
-        SET status = 'قيد المراجعة'
-        WHERE visit_id = ${visit_request_id}
-      `;
+  const committeeId = committeeRes.rows[0].committee_id;
 
-      return committeeId;
+  // Add leader
+  await client.query(
+    `INSERT INTO public.committee_members (committee_id, user_id, role)
+     VALUES ($1, $2, 'رئيس')`,
+    [committeeId, leader_user_id]
+  );
+
+  // ✅ Add members in ONE query
+  if (member_user_ids.length > 0) {
+    const values: any[] = [];
+    const placeholders: string[] = [];
+
+    member_user_ids.forEach((userId, index) => {
+      const baseIndex = index * 3;
+      placeholders.push(
+        `($${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3})`
+      );
+      values.push(committeeId, userId, "عضو");
     });
+
+    await client.query(
+      `INSERT INTO public.committee_members (committee_id, user_id, role)
+       VALUES ${placeholders.join(", ")}`,
+      values
+    );
+  }
+
+  // Update visit request
+  await client.query(
+    `UPDATE public.visit_requests
+     SET status = 'قيد المراجعة'
+     WHERE visit_id = $1`,
+    [visit_request_id]
+  );
+});
 
     return NextResponse.json({ success: true });
   } catch (error) {

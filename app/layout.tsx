@@ -11,25 +11,25 @@ const ibmPlexArabic = IBM_Plex_Sans_Arabic({
 })
 
 export const metadata: Metadata = {
-  title: 'الاتحاد السعودي للفروسية',
-  description: 'الاتحاد السعودي للفروسية - Saudi Arabian Equestrian Federation',
+  title: 'الاتحاد السعودي للفروسية والبولو',
+  description: 'الاتحاد السعودي للفروسية والبولو',
   
   icons: {
     icon: [
       {
-        url: '/SAEF LOGO Main Version Arabic English Gradient RGB.png',
+        url: '/Saef.png',
         type: 'image/png',
       },
       {
-        url: '/SAEF LOGO Main Version Arabic English Gradient RGB.png',
+        url: '/Saef.png',
         type: 'image/png',
       },
       {
-        url: '/SAEF LOGO Main Version Arabic English Gradient RGB.png',
+        url: '/Saef.png',
         type: 'image/png',
       },
     ],
-    apple: '/SAEF LOGO Main Version Arabic English Gradient RGB.png',
+    apple: '/Saef.png',
   },
 }
 

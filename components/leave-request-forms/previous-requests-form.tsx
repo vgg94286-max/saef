@@ -40,7 +40,7 @@ export function PreviousRequestsForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // Using "leave" role to distinguish from "club"
-        body: JSON.stringify({ email: data.email, role: "leave_requester" }), 
+        body: JSON.stringify({ email: data.email, role: "requester" }), 
       })
 
       const result = await res.json()

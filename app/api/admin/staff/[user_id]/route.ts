@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sql } from "@/lib/db";
+import { withTransaction } from "@/lib/db";
 
 export async function DELETE(
   _req: Request,
@@ -8,23 +8,29 @@ export async function DELETE(
   const { user_id } = await params;
 
   try {
-    // Delete staff first (FK dependency)
-    await sql`
-      DELETE FROM public.staff
-      WHERE user_id = ${user_id}
-    `;
+    return await withTransaction(async (client) => {
+      // 1. Delete staff first due to Foreign Key dependencies
+      await client.query(
+        "DELETE FROM public.staff WHERE user_id = $1",
+        [user_id]
+      );
 
-    // Delete user (cascade should handle related tables)
-    await sql`
-      DELETE FROM public.users
-      WHERE user_id = ${user_id}
-    `;
+      // 2. Delete the actual login user
+      const result = await client.query(
+        "DELETE FROM public.users WHERE user_id = $1",
+        [user_id]
+      );
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
+      if (result.rowCount === 0) {
+        throw new Error("الموظف غير موجود");
+      }
+
+      return NextResponse.json({ success: true });
+    });
+  } catch (error: any) {
     console.error("Error deleting staff:", error);
     return NextResponse.json(
-      { error: "فشل في حذف الموظف" },
+      { error: error.message || "فشل في حذف الموظف" },
       { status: 500 }
     );
   }

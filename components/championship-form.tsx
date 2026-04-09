@@ -17,6 +17,7 @@ import {
   Ambulance,
   FileCheck2,
   ListOrdered,
+  CalendarIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,7 +28,6 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { format, isBefore, startOfDay } from "date-fns"
 import { ar } from "date-fns/locale"
-import { CalendarIcon } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
@@ -59,13 +59,16 @@ const judgeSchema = z.object({
 
 /* ---------- Championship schema ---------- */
 const championshipSchema = z.object({
-  date: z.date(),
+  date: z.date({ required_error: "تاريخ البدء مطلوب" }),
+  end_date: z.date({ required_error: "تاريخ الانتهاء مطلوب" }),
   ambulance: z.boolean(),
   agreed_on_terms: z.boolean(),
   judges: z.array(judgeSchema).min(1, "يجب إضافة حكم واحد على الأقل"),
   rounds: z.array(roundSchema).min(1, "يجب إضافة شوط واحد على الأقل"),
-})
-
+}).refine((data) => data.end_date >= data.date, {
+  message: "تاريخ الانتهاء لا يمكن أن يكون قبل تاريخ البدء",
+  path: ["end_date"],
+});
 type ChampionshipFormData = z.infer<typeof championshipSchema>
 
 /* ====================================================== */
@@ -81,6 +84,11 @@ export function ChampionshipForm({ clubId }: { clubId: string }) {
   const { toast } = useToast()
   const router = useRouter()
 
+  const [startDate, setStartDate] = useState<Date | undefined>()
+  const [endDate, setEndDate] = useState<Date | undefined>()
+  const [isStartDateOpen, setIsStartDateOpen] = useState(false)
+  const [isEndDateOpen, setIsEndDateOpen] = useState(false)
+
   const {
     register,
     handleSubmit,
@@ -93,6 +101,7 @@ export function ChampionshipForm({ clubId }: { clubId: string }) {
     resolver: zodResolver(championshipSchema),
     defaultValues: {
       date: undefined,
+      end_date: undefined,
       ambulance: false,
       agreed_on_terms: false,
       judges: [{ judge_name: "" }],
@@ -126,7 +135,7 @@ export function ChampionshipForm({ clubId }: { clubId: string }) {
 
   /* ---------- Submit ---------- */
   const onSubmit = async (data: ChampionshipFormData) => {
-    
+
 
     setIsLoading(true)
     setSuccessMessage("")
@@ -147,7 +156,7 @@ export function ChampionshipForm({ clubId }: { clubId: string }) {
       toast({
         title: "تم إنشاء البطولة بنجاح",
         description: "سيتم مراجعة بيانات البطولة والموافقة عليها في أقرب وقت ممكن.",
-      
+
       })
       reset()
       setExpandedRounds({ 0: true })
@@ -195,56 +204,74 @@ export function ChampionshipForm({ clubId }: { clubId: string }) {
           </div>
         </CardHeader>
         <CardContent className="pt-6">
-          <div className="space-y-5">
-            {/* Date */}
-            <div className="space-y-2">
-              <Label>تاريخ البطولة</Label>
+          {/* Grid لترتيب التواريخ بجانب بعضها في الشاشات الكبيرة */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-              <Popover
-                open={isChampionshipDateOpen}
-                onOpenChange={setIsChampionshipDateOpen}
-              >
+            {/* Start Date */}
+            <div className="space-y-2">
+              <Label>تاريخ البدء</Label>
+              <Popover open={isStartDateOpen} onOpenChange={setIsStartDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     type="button"
                     variant="outline"
-                    className={cn(
-                      "w-full justify-start text-right font-normal",
-                      !championshipDate && "text-muted-foreground"
-                    )}
+                    className={cn("w-full justify-start text-right font-normal", !startDate && "text-muted-foreground")}
                   >
                     <CalendarIcon className="ml-2 h-4 w-4" />
-                    {championshipDate
-                      ? format(championshipDate, "PPP", { locale: ar })
-                      : "اختر تاريخاً"}
+                    {startDate ? format(startDate, "PPP", { locale: ar }) : "اختر تاريخ البدء"}
                   </Button>
                 </PopoverTrigger>
-
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={championshipDate}
-                    onSelect={(newDate) => {
-                      if (!newDate) return
-                      setChampionshipDate(newDate)
-                      setValue("date", newDate, { shouldValidate: true })
-                      setIsChampionshipDateOpen(false)
+                    selected={startDate}
+                    onSelect={(date) => {
+                      setStartDate(date)
+                      setValue("date", date!, { shouldValidate: true })
+                      setIsStartDateOpen(false)
                     }}
+                    disabled={(d) => isBefore(startOfDay(d), startOfDay(new Date()))}
+                    locale={ar}
+                  />
+                </PopoverContent>
+              </Popover>
+              {errors.date && <p className="text-sm text-destructive">{errors.date.message}</p>}
+            </div>
+
+            {/* End Date - الحقل المضاف */}
+            <div className="space-y-2">
+              <Label>تاريخ الانتهاء</Label>
+              <Popover open={isEndDateOpen} onOpenChange={setIsEndDateOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn("w-full justify-start text-right font-normal", !endDate && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="ml-2 h-4 w-4" />
+                    {endDate ? format(endDate, "PPP", { locale: ar }) : "اختر تاريخ الانتهاء"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={(date) => {
+                      setEndDate(date)
+                      setValue("end_date", date!, { shouldValidate: true })
+                      setIsEndDateOpen(false)
+                    }}
+                    // تعطيل التواريخ التي تسبق تاريخ البدء (إذا تم اختياره)
                     disabled={(d) =>
-                      isBefore(startOfDay(d), startOfDay(new Date()))
+                      isBefore(startOfDay(d), startOfDay(new Date())) ||
+                      (startDate ? isBefore(startOfDay(d), startOfDay(startDate)) : false)
                     }
                     locale={ar}
                   />
                 </PopoverContent>
               </Popover>
-
-              {errors.date && (
-                <p className="text-sm text-destructive">
-                  {errors.date.message}
-                </p>
-              )}
+              {errors.end_date && <p className="text-sm text-destructive">{errors.end_date.message}</p>}
             </div>
-
 
           </div>
         </CardContent>
@@ -411,74 +438,74 @@ export function ChampionshipForm({ clubId }: { clubId: string }) {
       </Card>
 
       {/* ============================================== */}
-{/* Submit & Terms Logic                           */}
-{/* ============================================== */}
-<Popover open={isTermsOpen} onOpenChange={setIsTermsOpen}>
-  {/* The Trigger is hidden but provides the positioning context */}
-  <PopoverTrigger asChild>
-    <div className="h-0 w-full" aria-hidden="true" />
-  </PopoverTrigger>
+      {/* Submit & Terms Logic                           */}
+      {/* ============================================== */}
+      <Popover open={isTermsOpen} onOpenChange={setIsTermsOpen}>
+        {/* The Trigger is hidden but provides the positioning context */}
+        <PopoverTrigger asChild>
+          <div className="h-0 w-full" aria-hidden="true" />
+        </PopoverTrigger>
 
-  <PopoverContent 
-    className="w-[calc(100vw-2rem)] max-w-lg p-6 space-y-4 text-right" 
-    side="top" 
-    align="center"
-  >
-    <div className="flex items-center gap-2 mb-2">
-      <FileCheck2 className="h-5 w-5 text-primary" />
-      <h3 className="font-bold text-lg text-primary">
-        الشروط والأحكام
-      </h3>
-    </div>
+        <PopoverContent
+          className="w-[calc(100vw-2rem)] max-w-lg p-6 space-y-4 text-right"
+          side="top"
+          align="center"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <FileCheck2 className="h-5 w-5 text-primary" />
+            <h3 className="font-bold text-lg text-primary">
+              الشروط والأحكام
+            </h3>
+          </div>
 
-    <p className="text-sm text-muted-foreground leading-relaxed border-t pt-4">
-      يجب الالتزام الكامل بتطبيق لوائح وأنظمة الاتحاد السعودي للفروسية.
-      كما يُمنع منعًا باتًا على أي فارس مشارك في البطولة ممارسة مهام التحكيم
-      خلال فترة انعقاد البطولة.
-    </p>
+          <p className="text-sm text-muted-foreground leading-relaxed border-t pt-4">
+            يجب الالتزام الكامل بتطبيق لوائح وأنظمة الاتحاد السعودي للفروسية.
+            كما يُمنع منعًا باتًا على أي فارس مشارك في البطولة ممارسة مهام التحكيم
+            خلال فترة انعقاد البطولة.
+          </p>
 
-    <Button
-      type="button" // Use type button to prevent premature native submission
-      className="w-full bg-primary text-primary-foreground font-bold h-11"
-      onClick={() => {
-        setValue("agreed_on_terms", true, { shouldValidate: true });
-        setIsTermsOpen(false);
-        // Directly trigger the form submission
-        handleSubmit(onSubmit)(); 
-      }}
-    >
-      أوافق على الشروط وإنشاء البطولة
-    </Button>
-  </PopoverContent>
-</Popover>
+          <Button
+            type="button" // Use type button to prevent premature native submission
+            className="w-full bg-primary text-primary-foreground font-bold h-11"
+            onClick={() => {
+              setValue("agreed_on_terms", true, { shouldValidate: true });
+              setIsTermsOpen(false);
+              // Directly trigger the form submission
+              handleSubmit(onSubmit)();
+            }}
+          >
+            أوافق على الشروط وإنشاء البطولة
+          </Button>
+        </PopoverContent>
+      </Popover>
 
-<Button
-  type="button" // Change to button so we control the flow manually
-  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-base font-semibold"
-  disabled={isLoading}
-  onClick={async (e) => {
-    // 1. Check if terms are already agreed
-    if (!watch("agreed_on_terms")) {
-      setIsTermsOpen(true);
-      return;
-    }
-    
-    // 2. If already agreed, just submit
-    handleSubmit(onSubmit)();
-  }}
->
-  {isLoading ? (
-    <>
-      <Loader2 className="ml-2 h-5 w-5 animate-spin" />
-      جاري إنشاء البطولة...
-    </>
-  ) : (
-    <>
-      <Trophy className="ml-2 h-5 w-5" />
-      إنشاء البطولة
-    </>
-  )}
-</Button>
+      <Button
+        type="button" // Change to button so we control the flow manually
+        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-base font-semibold"
+        disabled={isLoading}
+        onClick={async (e) => {
+          // 1. Check if terms are already agreed
+          if (!watch("agreed_on_terms")) {
+            setIsTermsOpen(true);
+            return;
+          }
+
+          // 2. If already agreed, just submit
+          handleSubmit(onSubmit)();
+        }}
+      >
+        {isLoading ? (
+          <>
+            <Loader2 className="ml-2 h-5 w-5 animate-spin" />
+            جاري إنشاء البطولة...
+          </>
+        ) : (
+          <>
+            <Trophy className="ml-2 h-5 w-5" />
+            إنشاء البطولة
+          </>
+        )}
+      </Button>
     </form>
   )
 }

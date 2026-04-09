@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Eye, FileText, CheckCircle2, XCircle, ImageIcon, ExternalLink } from "lucide-react";
+import { Eye, FileText, CheckCircle2, XCircle, ImageIcon, ExternalLink, Loader2 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -127,7 +127,6 @@ export default function VisitRequestsPage() {
     </div>
   );
 }
-
 function VisitDetailModal({
   visitId,
   open,
@@ -146,16 +145,23 @@ function VisitDetailModal({
     fetcher
   );
   const [acting, setActing] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [showRejectInput, setShowRejectInput] = useState(false);
 
   async function handleAction(action: "approve" | "reject") {
     if (!visitId) return;
+    if (action === "reject" && !rejectReason.trim()) return;
+
     setActing(true);
     try {
       await fetch(`/api/admin/visit-requests/${visitId}/${action}`, {
         method: "PATCH",
+        body: JSON.stringify({ note: action === "reject" ? rejectReason : null }),
       });
       mutate("/api/admin/visit-requests");
       onOpenChange(false);
+      setShowRejectInput(false);
+      setRejectReason("");
     } finally {
       setActing(false);
     }
@@ -176,7 +182,7 @@ function VisitDetailModal({
           </div>
         ) : (
           <div className="flex flex-col gap-5">
-            {/* Info */}
+            {/* Info Section */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-muted-foreground mb-1">اسم النادي</p>
@@ -200,7 +206,7 @@ function VisitDetailModal({
               </div>
             </div>
 
-            {/* License */}
+            {/* License Section */}
             {files?.licenseUrl && (
               <div>
                 <p className="text-xs text-muted-foreground mb-2">رخصة نافس</p>
@@ -216,14 +222,13 @@ function VisitDetailModal({
               </div>
             )}
 
-            {/* Images */}
+            {/* Images Section */}
             {files?.clubUrls && files.clubUrls.length > 0 && (
               <div>
                 <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
                   <ImageIcon className="h-3.5 w-3.5" />
                   صور الزيارة ({files.clubUrls.length})
                 </p>
-
                 <div className="grid grid-cols-2 gap-3">
                   {files.clubUrls.map((url, i) => (
                     <a
@@ -244,26 +249,63 @@ function VisitDetailModal({
               </div>
             )}
 
-            {/* Actions */}
+            {/* Actions Section */}
             {data.status === "قيد المراجعة" && (
-              <div className="flex items-center gap-3 pt-2 border-t border-border">
-                <Button
-                  onClick={() => handleAction("approve")}
-                  disabled={acting}
-                  className="gap-1.5 flex-1"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  قبول
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => handleAction("reject")}
-                  disabled={acting}
-                  className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                >
-                  <XCircle className="h-4 w-4" />
-                  رفض
-                </Button>
+              <div className="pt-4 border-t border-border">
+                {!showRejectInput ? (
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={() => handleAction("approve")}
+                      disabled={acting}
+                      className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      قبول الطلب
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowRejectInput(true)}
+                      disabled={acting}
+                      className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 "
+                    >
+                      <XCircle className="h-4 w-4" />
+                      رفض الطلب
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-red-600">سبب الرفض *</label>
+                      <textarea
+                        required
+                        className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200 focus:ring-1 focus:ring-red-500 outline-none"
+                        placeholder="اكتب سبب الرفض هنا... (سيظهر للنادي)"
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="destructive"
+                        className="flex-1"
+                        onClick={() => handleAction("reject")}
+                        disabled={acting || !rejectReason.trim()}
+                      >
+                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض النهائي"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          setShowRejectInput(false);
+                          setRejectReason("");
+                        }}
+                        disabled={acting}
+                      >
+                        إلغاء
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

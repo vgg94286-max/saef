@@ -14,8 +14,8 @@ export default async function Home() {
         redirect("/club-dashboard")
       case "admin":
         redirect("/admin/visit-requests")
-      case "leave_requester":
-        redirect("/leave_request_home")
+      case "requester":
+        redirect("/leave_req_home")
       case "staff":
         redirect("/staff-portal/portal")
     }

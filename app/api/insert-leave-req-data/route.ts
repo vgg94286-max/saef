@@ -1,37 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@/lib/db";
-import { LeaveRequesterJWTPayload } from "@/types/auth";
+import { withTransaction } from "@/lib/db";
+import { RequesterJWTPayload } from "@/types/auth";
 import jwt from "jsonwebtoken";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    // استخراج الحقول الجديدة بناءً على ما يرسله الـ Form
     const {
       full_name,
       national_id,
-      employer,
+      employment_name, // جهة العمل / المسمى
       phone,
       email,
-      height_cm,
-      weight_kg,
-      salary,
-      marital_status,
-      national_address,
+      rider_id,
+      requester_type,
+      region,
+      cham_name,
+      employment_student_num,
       user_id,
     } = body;
 
+    // 1. التحقق من وجود الحقول الإجبارية
     if (
       !full_name ||
       !national_id ||
-      !employer ||
+      !employment_name ||
       !phone ||
       !email ||
-      !height_cm ||
-      !weight_kg ||
-      !salary ||
-      !marital_status ||
-      !national_address ||
+      !rider_id ||
+      !requester_type ||
+      !region ||
+      !cham_name ||
+      !employment_student_num ||
       !user_id
     ) {
       return NextResponse.json(
@@ -40,54 +42,57 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    
-    const inserted = await sql.begin(async (tx) => {
-      
-      // Update user
-      await tx`
-        UPDATE public.users
-        SET is_verified = true
-        WHERE user_id = ${user_id}
-      `;
+    const inserted = await withTransaction(async (tx) => {
+      // 2. تحديث حالة المستخدم ليصبح موثقاً
+      await tx.query(
+        `UPDATE public.users
+         SET is_verified = true
+         WHERE user_id = $1`,
+        [user_id]
+      );
 
-      // Insert leave request
-      const result = await tx`
-        INSERT INTO public.leave_request (
+      // 3. إدخال بيانات طلب التفرغ بالحقول الجديدة
+      // ملاحظة: تأكد أن أسماء الأعمدة في الجدول (Database) تطابق هذه الأسماء
+      const result = await tx.query(
+        `INSERT INTO public.leave_request (
           full_name,
           national_id,
-          employer,
+          employment_name,
           phone,
           email,
-          height_cm,
-          weight_kg,
-          salary,
-          marital_status,
-          national_address,
+          rider_id,
+          requester_type,
+          region,
+          cham_name,
+          employment_student_num,
           user_id
         )
         VALUES (
-          ${full_name},
-          ${national_id},
-          ${employer},
-          ${phone},
-          ${email},
-          ${parseInt(height_cm)},
-          ${parseInt(weight_kg)},
-          ${parseInt(salary)},
-          ${marital_status},
-          ${national_address.toUpperCase()},
-          ${user_id}
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
         )
-        RETURNING *;
-      `;
+        RETURNING *`,
+        [
+          full_name,
+          national_id,
+          employment_name,
+          phone,
+          email,
+          parseInt(rider_id),
+          requester_type,
+          region,
+          cham_name,
+          employment_student_num, // إذا كان نصاً في القاعدة اتركه كما هو، إذا كان رقماً استخدم parseInt
+          user_id,
+        ]
+      );
 
-      return result;
+      return result.rows;
     });
-   
 
-    const payload: LeaveRequesterJWTPayload = {
+    // 4. إنشاء الـ JWT Payload
+    const payload: RequesterJWTPayload = {
       user_id: inserted[0].user_id,
-      role: "leave_requester",
+      role: "requester",
       name: inserted[0].full_name,
       email: inserted[0].email,
       national_id: inserted[0].national_id,
@@ -97,6 +102,7 @@ export async function POST(req: NextRequest) {
       expiresIn: "7d",
     });
 
+    // 5. إرسال الاستجابة ووضع الكوكيز
     const res = NextResponse.json({
       message: "تم إنشاء طلب التفرغ بنجاح",
       user_id: inserted[0].user_id,
@@ -107,15 +113,15 @@ export async function POST(req: NextRequest) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 24 * 7, 
     });
 
     return res;
 
   } catch (err: any) {
-    console.error(err);
+    console.error("Database Error:", err);
     return NextResponse.json(
-      { error: err.message || "حدث خطأ" },
+      { error: err.message || "حدث خطأ أثناء معالجة الطلب" },
       { status: 500 }
     );
   }

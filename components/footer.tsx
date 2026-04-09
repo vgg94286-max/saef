@@ -8,14 +8,17 @@ export function Footer() {
           <Image
             src="/Saef.png"
             alt="الاتحاد السعودي للفروسية"
-            width={140}
-            height={140}
-            className="h-14 w-14"
+             width={200}
+            height={200}
+            className="h-18 w-18"
           />
 
-          <p className="text-sm text-muted-foreground text-center">
-            © {new Date().getFullYear()} الاتحاد السعودي للفروسية. جميع الحقوق محفوظة
-          </p>
+         <p
+  dir="rtl"
+  className="text-sm text-muted-foreground text-center"
+>
+  © {new Date().getFullYear()} الاتحاد السعودي للفروسية والبولو. جميع الحقوق محفوظة
+</p>
         </div>
       </div>
     </footer>

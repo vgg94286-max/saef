@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -17,6 +17,9 @@ import { ar } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from 'next/navigation'
 import { useUploadThing } from "@/lib/uploadthing"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ScrollArea } from "@/components/ui/scroll-area"
+
 
 /* ------------------ Schema ------------------ */
 
@@ -37,6 +40,7 @@ const registerSchema = z.object({
   email: z.string().email("يرجى إدخال بريد إلكتروني صحيح"),
   clubName: z.string().min(2, "اسم النادي مطلوب"),
   licenseExpiry: z.date({ required_error: "يرجى اختيار تاريخ انتهاء الرخصة" }),
+  city: z.string().min(1, "يرجى اختيار المدينة"),
   nafesLicense: z
     .instanceof(File)
     .refine(file => file.size <= MAX_SIZE, "الحد الأقصى 30 ميجابايت ")
@@ -61,17 +65,34 @@ export function VisitReqOrderFormlogged({ defaultClubName, defaultEmail }: Visit
   const [date, setDate] = useState<Date | undefined>(undefined)
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
   const [lastFormData, setLastFormData] = useState<RegisterFormData | null>(null)
+  // التعديل 2: منطق المدن
+  const [cities, setCities] = useState<any[]>([])
+  const [searchTerm, setSearchTerm] = useState("")
   const router = useRouter()
   const { toast } = useToast()
   const { startUpload } = useUploadThing("clubSubmission")
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<RegisterFormData>({
+  const { register, handleSubmit, setValue, formState: { errors }, watch } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
      defaultValues: {
       clubName: defaultClubName || "", // prefill if available
       email: defaultEmail || "", // prefill if available
+      city: "",
     },
   })
+ const selectedCity = watch("city")
 
+  useEffect(() => {
+    fetch("/data/cities.json")
+      .then(res => res.json())
+      .then(data => setCities(data))
+      .catch(err => console.error("Error loading cities", err))
+  }, [])
+
+  const filteredCities = useMemo(() => {
+    const uniqueCityNames = Array.from(new Set(cities.map((c: any) => c.name.ar)))
+    if (!searchTerm) return uniqueCityNames.slice(0, 50)
+    return uniqueCityNames.filter((name: any) => name.includes(searchTerm)).slice(0, 50)
+  }, [searchTerm, cities])
   /* ------------------ Submit ------------------ */
 
   const onSubmit = async (data: RegisterFormData) => {
@@ -110,7 +131,7 @@ export function VisitReqOrderFormlogged({ defaultClubName, defaultEmail }: Visit
     }
   }
 
-  /* ------------------ OTP ------------------ */
+  
 
  const handleOTPVerify = async () => {
   if (!userId || !lastFormData || !licenseFile || clubFiles.length === 0) return
@@ -121,6 +142,7 @@ export function VisitReqOrderFormlogged({ defaultClubName, defaultEmail }: Visit
     const metadata = {
       userId,
       clubName: lastFormData.clubName,
+      city: lastFormData.city,
       licenseExpiry: lastFormData.licenseExpiry.toISOString(),
       email: lastFormData.email,
     }
@@ -147,6 +169,7 @@ export function VisitReqOrderFormlogged({ defaultClubName, defaultEmail }: Visit
         clubName: lastFormData.clubName,
         licenseExpiry: lastFormData.licenseExpiry.toISOString(),
         email: lastFormData.email,
+        city: lastFormData.city,
         licenseUrl,
         clubUrls,
       }),
@@ -207,6 +230,33 @@ export function VisitReqOrderFormlogged({ defaultClubName, defaultEmail }: Visit
               />
             </div>
             {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+          </div>
+          {/* التعديل 5: إضافة واجهة اختيار المدينة */}
+          <div className="space-y-2">
+            <Label>المدينة</Label>
+            <Select onValueChange={(v) => setValue("city", v, { shouldValidate: true })} value={selectedCity}>
+              <SelectTrigger className="w-full text-right">
+                <SelectValue placeholder="اختر المدينة" />
+              </SelectTrigger>
+              <SelectContent>
+                <div className="p-2 border-b sticky top-0 bg-white z-10">
+                  <Input
+                    placeholder="ابحث..."
+                    className="h-8 text-xs"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <ScrollArea className="h-[200px]">
+                  {filteredCities.map((cityName, index) => (
+                    <SelectItem key={index} value={cityName as string} className="text-right">
+                      {cityName as string}
+                    </SelectItem>
+                  ))}
+                </ScrollArea>
+              </SelectContent>
+            </Select>
+            {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
           </div>
 
           {/* License Expiry & Uploads */}
