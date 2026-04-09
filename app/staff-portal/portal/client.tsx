@@ -165,6 +165,13 @@ export default function StaffPortalPage() {
     const { data: me, isLoading } = useSWR("/api/auth/me", fetcher);
     const router = useRouter()
 
+     useEffect(() => {
+    if (!me?.user_id) {
+        router.push("/")
+    }
+}, [me, router])
+
+
     if (isLoading) {
         return (
             <div className="space-y-4 max-w-7xl mx-auto px-4 py-6">
@@ -175,12 +182,7 @@ export default function StaffPortalPage() {
         );
     }
 
-    useEffect(() => {
-    if (!me?.user_id) {
-        router.push("/")
-    }
-}, [me, router])
-
+   
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" dir="rtl">
             {/* Header Styled with Federation Colors */}
