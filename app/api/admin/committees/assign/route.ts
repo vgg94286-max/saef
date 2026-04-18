@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   }
 
   const existingCommitteeForVisit = await sql`
-    SELECT committee_id FROM public.committees WHERE visit_request_id = ${visit_request_id} AND status = 'بانتظار زيارة اللجنة'
+    SELECT committee_id FROM public.committees WHERE visit_request_id = ${visit_request_id} 
   `;
 
   if (existingCommitteeForVisit.length > 0) {
