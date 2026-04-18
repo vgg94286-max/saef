@@ -17,8 +17,8 @@ export default function RequestCertPageLogged({ session }: { session: any }) {
     <div className="flex min-h-screen flex-col bg-background">
       
       <PageHeader
-        title="طلب مشهد"
-        description="خدمة تمكّن الفرسان والمحكمين من إصدار طلبات مشهد الحضور والإنجازات الرسمية"
+        title="طلب مشهد حضور ومشاركة"
+        description="خدمة تمكّن الفرسان والمحكمين من إصدار طلبات مشهد الحضور والمشاركة الرسمية"
       />
 
       <main className="flex-1 py-12">

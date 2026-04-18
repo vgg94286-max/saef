@@ -14,9 +14,9 @@ const RequestSelectionPage = () => {
             bgColor: "bg-emerald-50",
         },
         {
-            title: "طلب مشهد",
-            description: "رفع وتقديم طلبات مشاهد الحضور والإنجازات الخاصة بالفرسان.",
-            cta: " طلب مشهد",
+            title:"طلب مشهد حضور ومشاركة",
+            description: "رفع وتقديم طلبات مشاهد الحضور والمشاركة الخاصة بالفرسان.",
+            cta: "طلب مشهد حضور ومشاركة",
             href: "/request-cert",
             icon: <ClipboardCheck className="w-8 h-8 text-blue-600" />,
             bgColor: "bg-blue-50",

@@ -128,8 +128,8 @@ export default function LeaveRequestsPage() {
             onClick={() => router.push("/request-no-obj-logged")}
           />
           <ActionCard 
-            title="طلب مشهد جديد" 
-            desc="طلب شهادة أو مشهد رسمي من الاتحاد" 
+            title="طلب مشهد جديد للحضور والمشاركة" 
+            desc="طلب شهادة أو مشهد حضور ومشاركة رسمي من الاتحاد" 
             icon={<Award className="w-8 h-8 text-emerald-700" />}
             onClick={() => router.push("/request-cert-logged")}
           />
