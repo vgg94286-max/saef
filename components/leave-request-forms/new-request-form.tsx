@@ -112,6 +112,16 @@ useEffect(() => {
       })
 
       const result = await res.json()
+
+      if (res.status === 400) {
+    toast({
+      title: "البريد الالكتروني مسجل مسبقاً",
+      description: "يرجى تسجيل الدخول عن طريق صفحة متابعة الطلبات السابقة ثم انشاء طلب جديد من هناك",
+      variant: "destructive",
+    })
+    return
+  }
+
       if (!res.ok) {
         toast({
           title: "خطأ",
@@ -236,7 +246,7 @@ const onInvalid = (errors: any) => {
 
            {/* Employment Name */}
 <div className="space-y-2">
-  <Label>المسمى الوظيفي / جهة العمل</Label>
+  <Label>المسمى الوظيفي</Label>
   <div className="relative">
     <Building2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
     <Input {...register("employment_name")} className="pr-10" />
@@ -258,7 +268,7 @@ const onInvalid = (errors: any) => {
 
             {/* Region (Dropdown) */}
 <div className="space-y-2">
-  <Label>المنطقة</Label>
+  <Label>المنطقة الادارية لجهة العمل</Label>
   {/* Region */}
 <Select onValueChange={(v) => setValue("region", v, { shouldValidate: true })}>
     <SelectTrigger className="w-full pr-10">
@@ -304,7 +314,7 @@ const onInvalid = (errors: any) => {
             </div>
             <div className="space-y-2">
                 <Label>البريد الإلكتروني</Label>
-                <Input {...register("email")} readOnly className="bg-slate-50" defaultValue={defaultEmail} />
+                <Input {...register("email")} className="bg-slate-50" />
                 {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
           </div>

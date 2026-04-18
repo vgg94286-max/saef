@@ -1,7 +1,15 @@
 // lib/sendpulse.ts
+import { Buffer } from "buffer";
 
+let cachedToken: string | null = null;
+let tokenExpiryTime: number | null = null;
 // 1. دالة لجلب رمز المرور (Access Token)
 async function getSendPulseToken() {
+  const currentTime = Date.now();
+
+  if (cachedToken && tokenExpiryTime && currentTime < tokenExpiryTime - 60000) {
+    return cachedToken;
+  }
   const res = await fetch(`${process.env.SENDPULSE_ENDPOINT}/oauth/access_token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -20,7 +28,11 @@ async function getSendPulseToken() {
     throw new Error(`فشل في الحصول على التوكن: ${data.error || res.statusText}`);
   }
 
-  return data.access_token;
+  cachedToken = data.access_token;
+  const expiresIn = data.expires_in || 3600; 
+  tokenExpiryTime = currentTime + (expiresIn * 1000);
+
+  return cachedToken;
 }
 
 interface SendEmailProps {
@@ -32,20 +44,34 @@ interface SendEmailProps {
 }
 
 // 2. دالة إرسال البريد
-export async function sendPulseEmail({ to, subject, html, attachmentUrl, attachmentName }: SendEmailProps) {
+export async function sendPulseEmail({ to, subject, html, attachmentUrl , attachmentName }: SendEmailProps) {
   try {
     const token = await getSendPulseToken();
-    let attachments: Record<string, string> = {};
+    let attachments_binary: Record<string, string> = {};
 
     // إذا كان هناك مرفق (تقرير الزيارة)، نجلبه ونحوله إلى Base64
     if (attachmentUrl && attachmentName) {
-      const fileRes = await fetch(attachmentUrl);
-      if (fileRes.ok) {
-        const arrayBuffer = await fileRes.arrayBuffer();
-        // SendPulse يقبل المرفقات ككائن: { "filename.pdf": "base64_string" }
-        attachments[attachmentName] = Buffer.from(arrayBuffer).toString("base64");
-      }
-    }
+  const fileRes = await fetch(attachmentUrl);
+
+  if (!fileRes.ok) {
+    throw new Error("Failed to fetch attachment");
+  }
+
+  const contentType = fileRes.headers.get("content-type") || "";
+
+  // 🔍 Debug: make sure it's actual file
+  if (contentType.includes("text/html")) {
+    throw new Error("Attachment URL returned HTML instead of file");
+  }
+
+  const buffer = Buffer.from(await fileRes.arrayBuffer());
+ 
+
+  // Optional: log size
+  console.log("Attachment size:", buffer.length);
+
+ attachments_binary[attachmentName] = buffer.toString("base64");
+}
 
     // تجهيز بيانات البريد (SendPulse يطلب أن يكون الـ HTML مشفراً بـ Base64 أيضاً)
     const emailData = {
@@ -59,7 +85,7 @@ export async function sendPulseEmail({ to, subject, html, attachmentUrl, attachm
         },
         to: [{ email: to }],
         // إضافة المرفقات فقط إذا كانت موجودة
-        ...(Object.keys(attachments).length > 0 && { attachments }),
+        ...(Object.keys(attachments_binary).length > 0 && { attachments_binary }),
       },
     };
 

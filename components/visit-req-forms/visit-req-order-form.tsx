@@ -4,7 +4,7 @@ import { useState , useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Loader2, Mail, Upload, CalendarIcon } from "lucide-react"
+import { Loader2, Mail, Upload, CalendarIcon, Check, ChevronsUpDown} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,6 +19,13 @@ import { useRouter } from 'next/navigation'
 import { useUploadThing } from "@/lib/uploadthing"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command"
 
 /* ------------------ Schema ------------------ */
 
@@ -64,6 +71,7 @@ export function VisitReqOrderForm({ defaultClubName, defaultEmail }: VisitReqOrd
   const [date, setDate] = useState<Date | undefined>(undefined)
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
   const [lastFormData, setLastFormData] = useState<RegisterFormData | null>(null)
+  const [open, setOpen] = useState(false)
   // التعديل 2: منطق المدن
   const [cities, setCities] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -229,33 +237,53 @@ export function VisitReqOrderForm({ defaultClubName, defaultEmail }: VisitReqOrd
             </div>
             {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
           </div>
-          {/* التعديل 5: إضافة واجهة اختيار المدينة */}
           <div className="space-y-2">
-            <Label>المدينة</Label>
-            <Select onValueChange={(v) => setValue("city", v, { shouldValidate: true })} value={selectedCity}>
-              <SelectTrigger className="w-full text-right">
-                <SelectValue placeholder="اختر المدينة" />
-              </SelectTrigger>
-              <SelectContent>
-                <div className="p-2 border-b sticky top-0 bg-white z-10">
-                  <Input
-                    placeholder="ابحث..."
-                    className="h-8 text-xs"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <ScrollArea className="h-[200px]">
-                  {filteredCities.map((cityName, index) => (
-                    <SelectItem key={index} value={cityName as string} className="text-right">
-                      {cityName as string}
-                    </SelectItem>
-                  ))}
-                </ScrollArea>
-              </SelectContent>
-            </Select>
-            {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
-          </div>
+  <Label>المدينة</Label>
+  <Popover open={open} onOpenChange={setOpen}>
+    <PopoverTrigger asChild>
+      <Button
+        variant="outline"
+        role="combobox"
+        aria-expanded={open}
+        className="w-full justify-between font-normal text-right"
+      >
+        {selectedCity ? selectedCity : "اختر المدينة"}
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+      <Command>
+        {/* Command handles the search automatically, no need for your own searchTerm state unless you are fetching from an API */}
+        <CommandInput placeholder="ابحث عن مدينة..." className="text-right h-9" />
+        <CommandEmpty>لم يتم العثور على مدينة.</CommandEmpty>
+        <CommandGroup>
+          <ScrollArea className="h-[200px]">
+            {allCities.map((cityName, index) => (
+              <CommandItem
+                key={index}
+                value={cityName}
+                onSelect={(currentValue) => {
+                  setValue("city", currentValue, { shouldValidate: true })
+                  setOpen(false) // Close popover after selection
+                }}
+                className="text-right"
+              >
+                {cityName}
+                <Check
+                  className={cn(
+                    "mr-auto h-4 w-4",
+                    selectedCity === cityName ? "opacity-100" : "opacity-0"
+                  )}
+                />
+              </CommandItem>
+            ))}
+          </ScrollArea>
+        </CommandGroup>
+      </Command>
+    </PopoverContent>
+  </Popover>
+  {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
+</div>
 
           {/* License Expiry & Uploads */}
           <div className="space-y-2">

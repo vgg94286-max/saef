@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef} from "react";
 import useSWR, { mutate } from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Plus, Mail, MapPin, File, Text, ExternalLink, Loader2 } from "lucide-react";
+import { Plus, ExternalLink, Loader2 } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { useToast } from "@/hooks/use-toast";
+
 
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -21,20 +22,22 @@ export default function AdminClubsPage() {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const [selectKey, setSelectKey] = useState(0);
+    const searchRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
+    
+   
 
 
     const filteredCities = useMemo(() => {
-        // 1. استخراج الأسماء الفريدة أولاً لتجنب تكرار المفاتيح (Keys)
         const uniqueCityNames = Array.from(new Set(cities.map((c: any) => c.name.ar)));
 
-        // 2. إذا لم يكن هناك بحث، اعرض أول 50 اسم فريد
+        // Use searchTerm directly (removed deferredSearchTerm to prevent delayed focus stealing)
         if (!searchTerm) return uniqueCityNames.slice(0, 50);
 
-        // 3. فلترة الأسماء بناءً على بحث المستخدم
         return uniqueCityNames
             .filter((name: string) => name.includes(searchTerm))
-            .slice(0, 50);
+            .slice(0, 50); // Kept to 50 so it matches your initial load
     }, [searchTerm, cities]);
     // Form State
     const [form, setForm] = useState({
@@ -110,21 +113,35 @@ export default function AdminClubsPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-xs font-bold text-[#1B4332]">المدينة *</label>
-                                    <Select required onValueChange={v => setForm({ ...form, city: v })}>
+                                    <Select required
+                                    
+                                    onValueChange={v => setForm({ ...form, city: v })}
+                                    value={form.city ? form.city : undefined}
+                                    onOpenChange={(isOpen) => {
+                                            if (isOpen) {
+                                                // 2. YOUR FIX: Clear city and search term when opened
+                                                setTimeout(() => {
+      searchRef.current?.focus();
+    }, 0);
+                                                setSearchTerm("");
+                                                
+                                            }
+                                        }}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="اختر المدينة" />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent key={selectKey} 
+                                        >
                                             {/* حقل البحث الثابت */}
                                             <div className="p-2 border-b sticky top-0 bg-white z-10">
                                                 <Input
-                                                    placeholder="ابحث عن مدينة..."
-                                                    className="h-8 text-xs"
-                                                    value={searchTerm}
-                                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    onKeyDown={(e) => e.stopPropagation()}
-                                                />
+  placeholder="ابحث عن مدينة..."
+  className="h-8 text-xs"
+  value={searchTerm} // Input uses immediate value (no typing lag)
+  onChange={(e) => setSearchTerm(e.target.value)}
+  onClick={(e) => e.stopPropagation()}
+  onKeyDown={(e) => e.stopPropagation()}
+/>
                                             </div>
 
                                             <ScrollArea className="h-[200px]">
@@ -135,6 +152,7 @@ export default function AdminClubsPage() {
                                                             key={`city-opt-${index}`}
                                                             value={cityName as string}
                                                             className="text-right"
+                                                             onFocus={(e) => e.preventDefault()}
                                                         >
                                                             {cityName as string}
                                                         </SelectItem>

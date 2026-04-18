@@ -19,10 +19,10 @@ const LeaveRequestContent = ({ data, statusLabels }: any) => (
   <div className="grid grid-cols-2 gap-y-4 gap-x-6 mt-6 text-sm">
     <DetailItem label="الاسم الكامل" value={data.full_name} />
     <DetailItem label="الهوية الوطنية" value={data.national_id} />
-    <DetailItem label="جهة العمل" value={data.employment_name} />
+    <DetailItem label="المسمى الوظيفي" value={data.employment_name} />
     <DetailItem label="الرقم الوظيفي/الجامعي" value={data.employment_student_num} />
     <DetailItem label="رقم الفارس" value={data.rider_id} />
-    <DetailItem label="المنطقة" value={data.region} />
+    <DetailItem label="المنطقة الادارية لجهة العمل" value={data.region} />
     <DetailItem label="نوع المتقدم" value={data.requester_type} />
     <DetailItem label="رقم الجوال" value={data.phone} />
     <div className="col-span-2 bg-emerald-50 p-3 rounded-lg border border-emerald-100">
@@ -110,7 +110,7 @@ export default function LeaveRequestsPage() {
           <h1 className="text-3xl font-bold text-slate-800">
             أهلاً {data?.leaveRequests?.[0]?.full_name?.split(" ")[0] || "بك"}
           </h1>
-          <p className="text-muted-foreground">مرحباً بك في بوابة خدمات الاتحاد الفروسية والبولو</p>
+          <p className="text-muted-foreground">مرحباً بك في بوابة خدمات الاتحاد السعودي للفروسية والبولو</p>
         </div>
 
         {/* 3 Main Action Buttons/Cards */}

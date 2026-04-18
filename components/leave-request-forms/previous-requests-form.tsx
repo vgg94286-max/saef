@@ -39,7 +39,7 @@ export function PreviousRequestsForm() {
       const res = await fetch("/api/check-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Using "leave" role to distinguish from "club"
+        
         body: JSON.stringify({ email: data.email, role: "requester" }), 
       })
 

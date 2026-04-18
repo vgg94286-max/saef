@@ -2,12 +2,12 @@
 import { neon, Pool, type PoolClient } from "@neondatabase/serverless";
 
 // ⚡ Fast HTTP client (keep this)
-export const sql = neon(process.env.NEON_URL!);
+export const sql = neon(process.env.DATABASE_URL!);
 
 // 🔒 Create pool (for transactions)
 function getPool() {
   return new Pool({
-    connectionString: process.env.NEON_URL!,
+    connectionString: process.env.DATABASE_URL!,
   });
 }
 
