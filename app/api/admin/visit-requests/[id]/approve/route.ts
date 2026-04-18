@@ -41,7 +41,7 @@ const commiteFile = await client.query(
     [id]
 );
 const visitNote = await client.query(
-    `SELECT note FROM public.visit_requests WHERE visit_request_id = $1;`, 
+    `SELECT note FROM public.visit_requests WHERE visit_id = $1;`, 
     [id]
 );
             if (queryData.rows.length === 0) {
