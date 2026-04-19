@@ -10,17 +10,21 @@ type Club = {
 };
 
 type VisitRequest = {
+  id: string;
   status: string;
   created_at: string;
+  note: string | null;
+  report_text: string | null;
 };
 
 type Tournament = {
+  id: string;
   status: string;
   created_at: string;
+  note: string | null;
 };
 
 export default async function Page() {
-  // Get session (your custom function)
   const session = await getSession();
 
   if (!session?.user_id) {
@@ -29,31 +33,36 @@ export default async function Page() {
 
   const userId = session.user_id;
 
- const club = (await sql`
-  SELECT club_id, club_name, account_status
-  FROM public.clubs
-  WHERE user_id = ${userId}
-`) as Club[];
+  const club = (await sql`
+    SELECT club_id, club_name, account_status
+    FROM public.clubs
+    WHERE user_id = ${userId}
+  `) as Club[];
 
-if (!club[0]) {
-  redirect("/clubs");
-}
+  if (!club[0]) {
+    redirect("/clubs");
+  }
 
-const clubId = club[0].club_id;
+  const clubId = club[0].club_id;
 
-const visitRequests = (await sql`
-  SELECT status, created_at
-  FROM public.visit_requests
-  WHERE club_id = ${clubId}
-  ORDER BY created_at DESC
-`) as VisitRequest[];
+  // جلب طلبات الزيارة مع ملاحظاتها وتقاريرها عبر LEFT JOIN
+  const visitRequests = (await sql`
+    SELECT * from public.get_club_visits(${clubId})
+        
+  `) as VisitRequest[];
 
-const tournaments = (await sql`
-  SELECT status, created_at
-  FROM public.championships
-  WHERE club_id = ${clubId}
-  ORDER BY created_at DESC
-`) as Tournament[];
+  // جلب البطولات مع ملاحظاتها
+  const tournaments = (await sql`
+    SELECT 
+        championships_id::text as id, 
+        status, 
+        created_at, 
+        note
+    FROM public.championships
+    WHERE club_id = ${clubId}
+    ORDER BY created_at DESC
+  `) as Tournament[];
+
   return (
     <ClubDashboard
       data={{

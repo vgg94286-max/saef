@@ -203,13 +203,24 @@ export default function LeaveRequestsPage() {
         
         {selected.country_from && <NoObjRequestContent data={selected} />}
 
+        {/* حقل الملاحظات: يظهر فقط إذا كان الطلب مرفوضاً وهناك ملاحظة مكتوبة */}
+        {(selected.req_status === "rejected" || selected.req_status === "مرفوض") && 
+          selected.note && selected.note.trim() !== "" && (
+          <div className="mt-6 space-y-1">
+            <p className="text-[10px] text-rose-600 uppercase font-black tracking-widest">سبب الرفض / ملاحظات الإدارة</p>
+            <div className="bg-rose-50 border-r-4 border-rose-500 p-4 rounded-md text-sm text-rose-800 leading-relaxed font-medium">
+              {selected.note}
+            </div>
+          </div>
+        )}
+
         {/* تذييل مشترك لجميع الطلبات */}
         <div className="grid grid-cols-2 gap-4 border-t pt-4 mt-6">
           <DetailItem label="تاريخ الطلب" value={new Date(selected.created_at).toLocaleDateString("ar-SA")} />
           <div className="text-left self-end">
             <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-              selected.req_status === "approved" ? "bg-green-100 text-green-700" : 
-              selected.req_status === "rejected" ? "bg-red-100 text-red-700" : 
+              selected.req_status === "approved"  || selected.req_status === "مقبول" ? "bg-green-100 text-green-700" : 
+              selected.req_status === "rejected" || selected.req_status === "مرفوض" ? "bg-red-100 text-red-700" : 
               "bg-yellow-100 text-yellow-700"
             }`}>
               {statusLabels[selected.req_status] || selected.req_status}

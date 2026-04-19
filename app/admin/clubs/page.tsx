@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef} from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import useSWR, { mutate } from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, ExternalLink, Loader2 } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { useToast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 
 
 
@@ -22,22 +24,20 @@ export default function AdminClubsPage() {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
-    const [selectKey, setSelectKey] = useState(0);
-    const searchRef = useRef<HTMLInputElement>(null);
+    const [cityOpen, setCityOpen] = useState(false)
     const { toast } = useToast();
-    
-   
+
+
 
 
     const filteredCities = useMemo(() => {
         const uniqueCityNames = Array.from(new Set(cities.map((c: any) => c.name.ar)));
 
-        // Use searchTerm directly (removed deferredSearchTerm to prevent delayed focus stealing)
-        if (!searchTerm) return uniqueCityNames.slice(0, 50);
+        if (!searchTerm) return uniqueCityNames.slice(0, 10);
 
         return uniqueCityNames
             .filter((name: string) => name.includes(searchTerm))
-            .slice(0, 50); // Kept to 50 so it matches your initial load
+            .slice(0, 10);
     }, [searchTerm, cities]);
     // Form State
     const [form, setForm] = useState({
@@ -113,58 +113,55 @@ export default function AdminClubsPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-xs font-bold text-[#1B4332]">المدينة *</label>
-                                    <Select required
-                                    
-                                    onValueChange={v => setForm({ ...form, city: v })}
-                                    value={form.city ? form.city : undefined}
-                                    onOpenChange={(isOpen) => {
-                                            if (isOpen) {
-                                                // 2. YOUR FIX: Clear city and search term when opened
-                                                setTimeout(() => {
-      searchRef.current?.focus();
-    }, 0);
-                                                setSearchTerm("");
-                                                
-                                            }
-                                        }}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="اختر المدينة" />
-                                        </SelectTrigger>
-                                        <SelectContent key={selectKey} 
-                                        >
-                                            {/* حقل البحث الثابت */}
-                                            <div className="p-2 border-b sticky top-0 bg-white z-10">
-                                                <Input
-  placeholder="ابحث عن مدينة..."
-  className="h-8 text-xs"
-  value={searchTerm} // Input uses immediate value (no typing lag)
-  onChange={(e) => setSearchTerm(e.target.value)}
-  onClick={(e) => e.stopPropagation()}
-  onKeyDown={(e) => e.stopPropagation()}
-/>
-                                            </div>
+                                    <Popover
+                                        open={cityOpen}
+                                        onOpenChange={(open) => {
+                                            setCityOpen(open);
+                                            if (open) setSearchTerm("");
+                                        }}
+                                    >
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="w-full justify-between"
+                                            >
+                                                {form.city || "اختر المدينة"}
+                                            </Button>
+                                        </PopoverTrigger>
 
-                                            <ScrollArea className="h-[200px]">
-                                                {filteredCities.length > 0 ? (
-                                                    filteredCities.map((cityName, index) => (
-                                                        <SelectItem
-                                                            // استخدام index مع بادئة فريدة يحل مشكلة الـ duplicate key نهائياً
+                                        <PopoverContent
+                                            className="w-[--radix-popover-trigger-width] p-0"
+                                            side="bottom"
+                                            align="start"
+                                            sideOffset={6}
+                                            avoidCollisions={false}
+                                        >
+                                            <Command>
+                                                <CommandInput
+                                                    placeholder="ابحث عن مدينة..."
+                                                    value={searchTerm}
+                                                    onValueChange={setSearchTerm}
+                                                />
+
+                                                <CommandEmpty>لا توجد نتائج مطابقة.</CommandEmpty>
+
+                                                <CommandGroup className="max-h-56 overflow-y-auto">
+                                                    {filteredCities.map((cityName, index) => (
+                                                        <CommandItem
                                                             key={`city-opt-${index}`}
-                                                            value={cityName as string}
-                                                            className="text-right"
-                                                             onFocus={(e) => e.preventDefault()}
+                                                            onSelect={() => {
+                                                                setForm({ ...form, city: cityName });
+                                                                setCityOpen(false);
+                                                            }}
                                                         >
-                                                            {cityName as string}
-                                                        </SelectItem>
-                                                    ))
-                                                ) : (
-                                                    <div className="p-4 text-center text-xs text-muted-foreground">
-                                                        لا توجد نتائج مطابقة
-                                                    </div>
-                                                )}
-                                            </ScrollArea>
-                                        </SelectContent>
-                                    </Select>
+                                                            {cityName}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-xs font-bold text-[#1B4332]">حالة الحساب *</label>

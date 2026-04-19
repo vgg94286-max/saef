@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation'
 import { useUploadThing } from "@/lib/uploadthing"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 
 /* ------------------ Schema ------------------ */
 
@@ -64,6 +65,7 @@ export function VisitReqOrderForm({ defaultClubName, defaultEmail }: VisitReqOrd
   const [date, setDate] = useState<Date | undefined>(undefined)
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
   const [lastFormData, setLastFormData] = useState<RegisterFormData | null>(null)
+  const [open, setOpen] = useState(false) // For city select popover
   // التعديل 2: منطق المدن
   const [cities, setCities] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -232,28 +234,47 @@ export function VisitReqOrderForm({ defaultClubName, defaultEmail }: VisitReqOrd
           {/* التعديل 5: إضافة واجهة اختيار المدينة */}
           <div className="space-y-2">
             <Label>المدينة</Label>
-            <Select onValueChange={(v) => setValue("city", v, { shouldValidate: true })} value={selectedCity}>
-              <SelectTrigger className="w-full text-right">
-                <SelectValue placeholder="اختر المدينة" />
-              </SelectTrigger>
-              <SelectContent>
-                <div className="p-2 border-b sticky top-0 bg-white z-10">
-                  <Input
-                    placeholder="ابحث..."
-                    className="h-8 text-xs"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <ScrollArea className="h-[200px]">
-                  {filteredCities.map((cityName, index) => (
-                    <SelectItem key={index} value={cityName as string} className="text-right">
-                      {cityName as string}
-                    </SelectItem>
-                  ))}
-                </ScrollArea>
-              </SelectContent>
-            </Select>
+         
+
+  <Popover open={open} onOpenChange={setOpen}>
+    <PopoverTrigger asChild>
+      <Button variant="outline" className="w-full justify-between">
+        {selectedCity || "اختر المدينة"}
+      </Button>
+    </PopoverTrigger>
+
+    <PopoverContent
+      className="w-[--radix-popover-trigger-width] p-0"
+      side="bottom"
+      align="start"
+      sideOffset={6}
+      avoidCollisions={false}
+    >
+      <Command>
+        <CommandInput
+          placeholder="ابحث عن مدينة..."
+          value={searchTerm}
+          onValueChange={setSearchTerm}
+        />
+
+        <CommandEmpty>لا توجد نتائج.</CommandEmpty>
+
+        <CommandGroup className="max-h-56 overflow-y-auto">
+          {filteredCities.slice(0, 10).map((city) => (
+            <CommandItem
+              key={city}
+              onSelect={() => {
+                setValue("city", city, { shouldValidate: true })
+                setOpen(false)
+              }}
+            >
+              {city}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      </Command>
+    </PopoverContent>
+  </Popover>
             {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
           </div>
 

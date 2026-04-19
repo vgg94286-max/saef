@@ -13,12 +13,20 @@ import {
     Clock,
     XCircle,
     FileText,
+    ExternalLink,
 } from "lucide-react";
 import  AccountStatusBadge from "@/components/club-account-status";
 import { useRouter } from "next/navigation";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { useState } from "react";
 
-type VisitRequest = { status: string; created_at: string };
-type Tournament = { status: string; created_at: string };
+type VisitRequest = { id: string; status: string; created_at: string; note: string | null; report_text: string | null; };
+type Tournament = { id: string; status: string; created_at: string; note: string | null; };
 
 type DashboardData = {
     club: { club_name: string; account_status: string };
@@ -27,7 +35,7 @@ type DashboardData = {
 };
 
 function StatusBadge({ status }: { status: string }) {
-    if (status === "قيد المعالجة")
+    if (status === "قيد المراجعة")
         return (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                 <Clock className="h-3 w-3" />
@@ -110,14 +118,17 @@ function StatCard({
         </div>
     );
 }
-
+type UnifiedRequest = (VisitRequest & { type: "visit" }) | (Tournament & { type: "tournament" });
 export function ClubDashboard({ data }: { data: DashboardData }) {
     const { club, visitRequests, tournaments } = data;
     const isActive = club.account_status === "مفعل";
-    const allRequests = [
+   const allRequests: UnifiedRequest[] = [
         ...visitRequests.map((r) => ({ ...r, type: "visit" as const })),
         ...tournaments.map((t) => ({ ...t, type: "tournament" as const })),
-    ];
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); // ترتيب تنازلي
+
+    // حالة التحكم بالنافذة
+    const [selectedReq, setSelectedReq] = useState<UnifiedRequest | null>(null);
     const router = useRouter();
 
 
@@ -247,6 +258,8 @@ export function ClubDashboard({ data }: { data: DashboardData }) {
                                         <th className="text-right text-xs font-semibold text-muted-foreground px-6 py-3">
                                             الحالة
                                         </th>
+                                        <th className="text-center text-xs font-semibold text-muted-foreground px-6 py-3">إجراء</th>
+                                    
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -277,6 +290,21 @@ export function ClubDashboard({ data }: { data: DashboardData }) {
                                             <td className="px-6 py-4">
                                                 <StatusBadge status={req.status} />
                                             </td>
+                                            <td className="px-6 py-4 text-center">
+                                                {/* زر إظهار التفاصيل - يظهر فقط إذا كان هناك ملاحظة أو تقرير */}
+                                                {(req.note || (req.type === 'visit' && req.report_text)) ? (
+                                                    <Button 
+                                                        variant="outline" 
+                                                        size="sm" 
+                                                        className="h-8 text-xs font-bold"
+                                                        onClick={() => setSelectedReq(req)}
+                                                    >
+                                                        عرض التفاصيل
+                                                    </Button>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">لا توجد تفاصيل</span>
+                                                )}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -288,9 +316,48 @@ export function ClubDashboard({ data }: { data: DashboardData }) {
                 {/* Footer */}
                 <footer className="mt-10 text-center">
                     <p className="text-xs text-muted-foreground">
-                        الاتحاد السعودي للفروسية - Saudi Arabian Equestrian Federation
+                        الاتحاد السعودي للفروسية والبولو
                     </p>
                 </footer>
+                {/* نافذة التفاصيل (Modal) */}
+            <Dialog open={!!selectedReq} onOpenChange={(open) => !open && setSelectedReq(null)}>
+                <DialogContent dir="rtl" className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-[#1B4332] flex items-center gap-2">
+                            <FileText className="h-5 w-5" /> تفاصيل الطلب
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {selectedReq && (
+                        <div className="space-y-4 py-4">
+                            {/* عرض الملاحظات إذا كانت موجودة (للزيرات والبطولات) */}
+                            {selectedReq.note && selectedReq.note.trim() !== "" && (
+                                <div className="space-y-1">
+                                    <p className="text-[10px] text-[#40916C] uppercase font-black">ملاحظة / سبب الرفض</p>
+                                    <div className="bg-[#FFF5F5] border-r-4 border-[#C53030] p-3 rounded-md text-sm text-[#C53030] font-medium">
+                                        {selectedReq.note}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* عرض التقرير الميداني إذا كان موجوداً (للزيارات فقط) */}
+                            {selectedReq.type === "visit" && selectedReq.report_text && selectedReq.report_text.trim() !== "" && (
+                                <div className="space-y-1 mt-4">
+                                    <p className="text-[10px] text-[#40916C] uppercase font-black">التقرير الميداني للجنة</p>
+                                    <a
+                                        href={selectedReq.report_text}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-2 w-full p-3 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors border border-slate-200 text-sm font-bold text-slate-700"
+                                    >
+                                        <ExternalLink className="h-4 w-4" /> استعراض ملف التقرير
+                                    </a>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
             </main>
         </div>
     );
