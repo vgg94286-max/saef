@@ -40,7 +40,7 @@ export default async function Page() {
   `) as Club[];
 
   if (!club[0]) {
-    redirect("/clubs");
+    redirect("/");
   }
 
   const clubId = club[0].club_id;
