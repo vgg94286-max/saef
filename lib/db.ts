@@ -2,11 +2,11 @@
 import { neon, Pool, type PoolClient } from "@neondatabase/serverless";
 
 
-export const sql = neon(process.env.NEON_URL_TEST!);
+export const sql = neon(process.env.NEON_URL!);
 
 function getPool() {
   return new Pool({
-    connectionString: process.env.NEON_URL_TEST!,
+    connectionString: process.env.NEON_URL!,
   });
 }
 
