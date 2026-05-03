@@ -195,6 +195,7 @@ export default function AdminClubsPage() {
                         <TableRow>
                             <TableHead className="text-right">النادي</TableHead>
                             <TableHead className="text-right">المدينة</TableHead>
+                            <TableHead className="text-right">تاريخ انتهاء الرخصة</TableHead>
                             <TableHead className="text-right">الرخصة</TableHead>
                             <TableHead className="text-right">الحالة</TableHead>
                             <TableHead className="text-center">تغيير الحالة</TableHead>
@@ -209,6 +210,11 @@ export default function AdminClubsPage() {
                                         <p className="text-[10px] text-muted-foreground">{club.email}</p>
                                     </TableCell>
                                     <TableCell className="text-sm font-medium">{club.city}</TableCell>
+                                    <TableCell className="text-sm font-medium">
+                                        {club.license_end_date
+                                            ? new Date(club.license_end_date).toISOString().split("T")[0]
+                                            : "لا يوجد تاريخ انتهاء للرخصة"}
+                                    </TableCell>
                                     <TableCell>
                                         {club.licence_file ? (
                                             <Button variant="ghost" size="sm" className="text-blue-600 gap-1 h-8" asChild>
