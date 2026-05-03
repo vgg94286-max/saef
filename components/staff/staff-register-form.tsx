@@ -4,21 +4,39 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Loader2, Mail, Lock, User } from "lucide-react"
+import { Loader2, Mail, Lock, User, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { OTPVerification } from "@/components/otp_verification"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const schema = z.object({
   staffName: z.string().min(2, "اسم الموظف مطلوب"),
 
   email: z.string().email("يرجى إدخال بريد إلكتروني صحيح"),
 
+  committee: z.string().min(1, "يرجى اختيار اللجنة"), // الحقل الجديد
+
   password: z.string().min(8, "8 أحرف على الأقل"),
 })
+const COMMITTEES = [
+  "لجنة التقاط الأوتاد",
+  "لجنة الترويض",
+  "لجنة سباقات القدرة والتحمل",
+  "لجنة قفز الحواجز",
+  "لجنة البولو",
+  "لجنة الرماية من على ظهر الخيل",
+  "أخرى"
+]
 
 type FormData = z.infer<typeof schema>
 
@@ -32,8 +50,11 @@ export function StaffRegisterForm() {
   const { toast } = useToast()
   const router = useRouter()
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit,setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
+    defaultValues: {
+      committee: ""
+    }
   })
 
   const onSubmit = async (data: FormData) => {
@@ -83,6 +104,7 @@ export function StaffRegisterForm() {
           email: lastFormData?.email,
           password: lastFormData?.password,
           staffName: lastFormData?.staffName,
+          committee: lastFormData?.committee,
         }),
       })
 
@@ -133,6 +155,26 @@ export function StaffRegisterForm() {
               <Input className="pr-10" dir="ltr" {...register("email")} />
             </div>
             {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label>اللجنة التي ينتمي إليها الموظف</Label>
+            <div className="relative">
+              <Users className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
+              <Select onValueChange={(v) => setValue("committee", v, { shouldValidate: true })}>
+                <SelectTrigger className="w-full pr-10">
+                  <SelectValue placeholder="اختر اللجنة" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMMITTEES.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {errors.committee && <p className="text-sm text-destructive">{errors.committee.message}</p>}
           </div>
 
           {/* Password */}

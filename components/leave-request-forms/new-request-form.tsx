@@ -99,51 +99,64 @@ useEffect(() => {
 }, [toast]); // Added toast to dependency array for safety
 
   const onSubmit = async (data: NewRequestFormData) => {
-    setIsLoading(true)
-    setEmail(data.email)
-    setFormData(data)
+  setIsLoading(true);
+  setEmail(data.email);
+  setFormData(data);
 
-    try {
-      // Create user first
-      const res = await fetch("/api/insert-new-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.email, role: "requester" }),
-      })
+  try {
+    // 1. التحقق من رقم الفارس
+    const checkRes = await fetch(`/api/check-riderid`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: data.rider_id })
+    });
 
-      const result = await res.json()
-
-      if (res.status === 400) {
-    toast({
-      title: "البريد الالكتروني مسجل مسبقاً",
-      description: "يرجى تسجيل الدخول عن طريق صفحة متابعة الطلبات السابقة ثم انشاء طلب جديد من هناك",
-      variant: "destructive",
-    })
-    return
-  }
-
-      if (!res.ok) {
-        toast({
-          title: "خطأ",
-          description: result.error || "حدث خطأ غير متوقع",
-          variant: "destructive",
-        })
-        return
-      }
-
-      setUserId(result.user.user_id)
-      setShowOTP(true) 
-    } catch (err) {
-       toast({
-          title: "خطأ",
-          description: (err as Error).message || "حدث خطأ غير متوقع",
-          variant: "destructive",
-        })
-    } finally {
-      setIsLoading(false)
+    if (checkRes.status === 404) {
+      throw new Error("رقم الفارس غير صحيح أو لا يوجد");
     }
-  }
+    
+    if (!checkRes.ok) {
+      throw new Error("حدث خطأ أثناء التحقق من رقم الفارس");
+    }
 
+    // 2. إنشاء المستخدم
+    const res = await fetch("/api/insert-new-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: data.email, role: "requester" }),
+    });
+
+    const result = await res.json();
+
+    if (res.status === 400) {
+      toast({
+        title: "البريد الالكتروني مسجل مسبقاً",
+        description: "يرجى تسجيل الدخول عن طريق صفحة متابعة الطلبات السابقة ثم انشاء طلب جديد من هناك",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return; // نخرج هنا لأن هذا خطأ منطقي وليس فشل في النظام
+    }
+
+    if (!res.ok) {
+      throw new Error(result.error || "حدث خطأ غير متوقع أثناء إنشاء الحساب");
+    }
+
+    // نجاح العمليات
+    setUserId(result.user.user_id);
+    setShowOTP(true);
+
+  } catch (err) {
+    // أي خطأ في أي Fetch أو Error تم رميه (throw) سيصل هنا
+    toast({
+      title: "حدث خطأ",
+      description: (err as Error).message || "حدث خطأ غير متوقع",
+      variant: "destructive",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
   const handleOTPVerify = async () => {
     if (!formData || !userId) return
     setIsLoading(true)
@@ -161,7 +174,7 @@ useEffect(() => {
           requester_type: formData.requester_type,
           region: formData.region,
           cham_name: formData.cham_name,
-          employment_student_num: formData.employment_student_num ? Number(formData.employment_student_num) : null,
+          employment_student_num: formData.employment_student_num ? formData.employment_student_num: null,
           user_id: userId,
         }),
       })
@@ -176,9 +189,7 @@ useEffect(() => {
     }
   }
   
-const onInvalid = (errors: any) => {
-  console.error("FORM VALIDATION FAILED:", errors);
-};
+
 
   return (
     <>
@@ -188,7 +199,7 @@ const onInvalid = (errors: any) => {
 
 
 
-        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-5" dir="rtl">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" dir="rtl">
           <div className="grid gap-5 md:grid-cols-2">
             {/* Name */}
             <div className="space-y-2">

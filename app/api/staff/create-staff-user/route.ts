@@ -7,9 +7,9 @@ import { StaffJWTPayload } from "@/types/auth"
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { email, password, staffName } = body
+    const { email, password, staffName, committee } = body
 
-    if (!email || !password || !staffName) {
+    if (!email || !password || !staffName || !committee) {
       return NextResponse.json(
         { error: "جميع الحقول مطلوبة" },
         { status: 400 }
@@ -51,10 +51,10 @@ export async function POST(req: Request) {
       const userId = userRes.rows[0].user_id
 
       const staffRes = await tx.query(
-        `INSERT INTO public.staff (user_id, staff_name)
-         VALUES ($1, $2)
+        `INSERT INTO public.staff (user_id, staff_name, b_committee)
+         VALUES ($1, $2, $3)
          RETURNING staff_id, staff_name`,
-        [userId, staffName]
+        [userId, staffName, committee]
       )
 
       return {
@@ -68,6 +68,7 @@ export async function POST(req: Request) {
       role: "staff",
       staff_name: result.staff.staff_name,
       staff_id: result.staff.staff_id,
+      committee: result.staff.b_committee,
     }
 
     const token = jwt.sign(payload, process.env.JWT_SECRET!, {

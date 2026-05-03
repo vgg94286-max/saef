@@ -48,6 +48,7 @@ export async function POST(req: Request) {
       role: "staff",
       staff_id: user.staff_id,
       staff_name: user.staff_name,
+      committee: user.b_committee
      
     };
 
@@ -60,7 +61,8 @@ export async function POST(req: Request) {
         user_id: user.user_id,
         email: user.email,
         staff_id: user.staff_id,
-        staff_name: user.staff_name
+        staff_name: user.staff_name,
+        committee: user.b_committee
       }
     });
 

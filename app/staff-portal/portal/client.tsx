@@ -62,7 +62,7 @@ type ChampDetail = Championship & {
 };
 
 type VisitRequest = {
-    visit_id: number;
+    visit_id: string;
     club_name: string;
     status: string;
     created_at: string;
@@ -197,6 +197,12 @@ export default function StaffPortalPage() {
                         <p className="text-sm text-muted-foreground">
                             مرحباً، <span className="font-bold text-[#40916C]">{me.staff_name}</span>
                         </p>
+                        <p className="text-sm text-muted-foreground">
+                            {me.committee && (
+                                <span className="font-medium text-[#40916C]"> <span className="text-sm text-muted-foreground">اللجنة:</span> {me.committee}</span>
+                            )}
+                        </p>
+
                     </div>
                 </div>
 
@@ -613,15 +619,16 @@ function AllRequestsSection({ userId }: { userId: string }) {
                     </div>
                 </>
             )}
-            <VisitDetailDialog visit={selectedVisit} onClose={() => setSelectedVisit(null)} />
-            <LeaveDetailDialog leave={selectedLeave} onClose={() => setSelectedLeave(null)} />
+            <VisitDetailDialog visit={selectedVisit} userId={userId} onClose={() => setSelectedVisit(null)} />
+           <LeaveDetailDialog leave={selectedLeave} userId={userId} onClose={() => setSelectedLeave(null)} />
             <ChampDetailDialog
                 champId={selectedChamp ? String(selectedChamp.championships_id) : null}
                 open={!!selectedChamp}
+                userId={userId}
                 onOpenChange={(open) => !open && setSelectedChamp(null)}
             />
-            <CertDetailDialog cert={selectedCert} onClose={() => setSelectedCert(null)} />
-            <NoObjDetailDialog noObj={selectedNoObj} onClose={() => setSelectedNoObj(null)} />
+            <CertDetailDialog cert={selectedCert}  userId={userId} onClose={() => setSelectedCert(null)} />
+            <NoObjDetailDialog noObj={selectedNoObj}  userId={userId} onClose={() => setSelectedNoObj(null)} />
 
         </div>
     );
@@ -737,10 +744,54 @@ function MyCommitteesSection({ userId }: { userId: string }) {
 
 /* ========== Dialog Components ========== */
 
-function VisitDetailDialog({ visit, onClose }: { visit: VisitRequest | null; onClose: () => void }) {
+function VisitDetailDialog({ visit, userId, onClose }: { visit: VisitRequest | null; userId: string; onClose: () => void }) {
+    const { mutate } = useSWRConfig();
+    const { toast } = useToast();
+    const [acting, setActing] = useState(false);
+    const [rejectReason, setRejectReason] = useState("");
+    const [showRejectInput, setShowRejectInput] = useState(false);
+
+    async function handleAction(action: "approve" | "reject") {
+        if (!visit) return;
+        if (action === "reject" && !rejectReason.trim()) return;
+
+        setActing(true);
+        try {
+            // ملاحظة: تأكد من أن المسار هنا يطابق مجلد الـ API الخاص بك
+            // إذا كان المسار في مجلد admin بدلاً من staff، قم بتعديله إلى /api/admin/...
+            const res = await fetch(`/api/staff/visit-requests/${visit.visit_id}/${action}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ note: action === "reject" ? rejectReason : null }),
+            });
+
+            if (!res.ok) throw new Error("فشل تنفيذ الإجراء");
+
+            toast({ title: "تم بنجاح", description: "تم تحديث حالة طلب الزيارة بنجاح" });
+            
+            // تحديث بيانات الجدول
+            mutate(`/api/staff/requests?user_id=${userId}`);
+            
+            onClose();
+            setShowRejectInput(false);
+            setRejectReason("");
+        } catch (error) {
+            toast({ title: "خطأ", description: "حدث خطأ أثناء تنفيذ العملية", variant: "destructive" });
+        } finally {
+            setActing(false);
+        }
+    }
+
     if (!visit) return null;
+
     return (
-        <Dialog open={!!visit} onOpenChange={onClose}>
+        <Dialog open={!!visit} onOpenChange={(open) => {
+            if (!open) {
+                setShowRejectInput(false);
+                setRejectReason("");
+                onClose();
+            }
+        }}>
             <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto" dir="rtl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-[#1B4332]">
@@ -758,23 +809,127 @@ function VisitDetailDialog({ visit, onClose }: { visit: VisitRequest | null; onC
                         </a>
                     )}
                 </div>
+
+                {/* --- قسم الإجراءات (القبول / الرفض) --- */}
+                {visit.status === "قيد المراجعة" && (
+                    <div className="pt-4 border-t border-border mt-2">
+                        {!showRejectInput ? (
+                            <div className="flex items-center gap-3">
+                                <Button
+                                    onClick={() => handleAction("approve")}
+                                    disabled={acting}
+                                    className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700"
+                                >
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    قبول الطلب
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowRejectInput(true)}
+                                    disabled={acting}
+                                    className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                >
+                                    <XCircle className="h-4 w-4" />
+                                    رفض الطلب
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-red-600">سبب الرفض *</label>
+                                    <textarea
+                                        required
+                                        className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200 focus:ring-1 focus:ring-red-500 outline-none"
+                                        placeholder="اكتب سبب الرفض هنا... (سيظهر للنادي)"
+                                        value={rejectReason}
+                                        onChange={(e) => setRejectReason(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="destructive"
+                                        className="flex-1"
+                                        onClick={() => handleAction("reject")}
+                                        disabled={acting || !rejectReason.trim()}
+                                    >
+                                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض النهائي"}
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => {
+                                            setShowRejectInput(false);
+                                            setRejectReason("");
+                                        }}
+                                        disabled={acting}
+                                    >
+                                        إلغاء
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     );
 }
 
-function LeaveDetailDialog({ leave, onClose }: { leave: LeaveRequest | null; onClose: () => void }) {
+function LeaveDetailDialog({ leave, userId, onClose }: { leave: LeaveRequest | null; userId: string; onClose: () => void }) {
+    const { mutate } = useSWRConfig();
+    const { toast } = useToast();
+    const [acting, setActing] = useState(false);
+    const [rejectReason, setRejectReason] = useState("");
+    const [showRejectInput, setShowRejectInput] = useState(false);
+
+    async function handleAction(action: "approve" | "reject") {
+        if (!leave) return;
+        if (action === "reject" && !rejectReason.trim()) return;
+
+        setActing(true);
+        try {
+            // ملاحظة: تأكد من وجود هذا المسار في مجلد الـ API (api/staff/leave-requests/[id]/[action])
+            const res = await fetch(`/api/staff/leave-requests/${leave.request_id}/${action}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ note: action === "reject" ? rejectReason : null }),
+            });
+
+            if (!res.ok) throw new Error("فشل تنفيذ الإجراء");
+
+            toast({ title: "تم بنجاح", description: "تم تحديث حالة طلب التفرغ بنجاح" });
+            
+            // تحديث جدول الطلبات فوراً
+            mutate(`/api/staff/requests?user_id=${userId}`);
+            
+            onClose();
+            setShowRejectInput(false);
+            setRejectReason("");
+        } catch (error) {
+            toast({ title: "خطأ", description: "حدث خطأ أثناء تنفيذ العملية", variant: "destructive" });
+        } finally {
+            setActing(false);
+        }
+    }
+
     if (!leave) return null;
+
     return (
-        <Dialog open={!!leave} onOpenChange={onClose}>
+        <Dialog open={!!leave} onOpenChange={(open) => {
+            if (!open) {
+                setShowRejectInput(false);
+                setRejectReason("");
+                onClose();
+            }
+        }}>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto" dir="rtl">
                 <DialogHeader className="border-b pb-4">
                     <DialogTitle className="flex items-center gap-2 text-[#1B4332]">
                         <UserCheck className="h-5 w-5" /> تفاصيل طلب التفرغ لمشاركة رياضية
                     </DialogTitle>
                 </DialogHeader>
+                
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 py-6">
-                    {/* عرض الحقول بناءً على المسميات الجديدة */}
+                    {/* عرض الحقول بناءً على المسميات */}
                     {Object.entries(LEAVE_LABELS).map(([key, label]) => (
                         <InfoItem
                             key={key}
@@ -792,14 +947,115 @@ function LeaveDetailDialog({ leave, onClose }: { leave: LeaveRequest | null; onC
                         <InfoItem label="تاريخ التقديم" value={formatDate(leave.created_at)} />
                     </div>
                 </div>
+
+                {/* --- قسم الإجراءات (القبول / الرفض) --- */}
+                {leave.status === "قيد المراجعة" && (
+                    <div className="pt-2 border-t border-border">
+                        {!showRejectInput ? (
+                            <div className="flex items-center gap-3">
+                                <Button
+                                    onClick={() => handleAction("approve")}
+                                    disabled={acting}
+                                    className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700"
+                                >
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    قبول الطلب
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowRejectInput(true)}
+                                    disabled={acting}
+                                    className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                >
+                                    <XCircle className="h-4 w-4" />
+                                    رفض الطلب
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-red-600">سبب الرفض *</label>
+                                    <textarea
+                                        required
+                                        className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200 focus:ring-1 focus:ring-red-500 outline-none"
+                                        placeholder="اكتب سبب الرفض هنا... (سيظهر لمقدم الطلب)"
+                                        value={rejectReason}
+                                        onChange={(e) => setRejectReason(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="destructive"
+                                        className="flex-1"
+                                        onClick={() => handleAction("reject")}
+                                        disabled={acting || !rejectReason.trim()}
+                                    >
+                                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض النهائي"}
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => {
+                                            setShowRejectInput(false);
+                                            setRejectReason("");
+                                        }}
+                                        disabled={acting}
+                                    >
+                                        إلغاء
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     );
 }
-function CertDetailDialog({ cert, onClose }: { cert: CertRequest | null; onClose: () => void }) {
+function CertDetailDialog({ cert, userId, onClose }: { cert: CertRequest | null; userId: string; onClose: () => void }) {
+    const { mutate } = useSWRConfig();
+    const { toast } = useToast();
+    const [acting, setActing] = useState(false);
+    const [rejectReason, setRejectReason] = useState("");
+    const [showRejectInput, setShowRejectInput] = useState(false);
+
+    async function handleAction(action: "approve" | "reject") {
+        if (!cert) return;
+        if (action === "reject" && !rejectReason.trim()) return;
+
+        setActing(true);
+        try {
+            // ملاحظة: تأكد من أن cert.request_id هو اسم الحقل الصحيح للمعرف في قاعدة البيانات
+            const res = await fetch(`/api/staff/cert-requests/${cert.request_id}/${action}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ note: action === "reject" ? rejectReason : null }),
+            });
+
+            if (!res.ok) throw new Error("فشل تنفيذ الإجراء");
+
+            toast({ title: "تم بنجاح", description: "تم تحديث حالة طلب الشهادة بنجاح" });
+            mutate(`/api/staff/requests?user_id=${userId}`);
+            
+            onClose();
+            setShowRejectInput(false);
+            setRejectReason("");
+        } catch (error) {
+            toast({ title: "خطأ", description: "حدث خطأ أثناء تنفيذ العملية", variant: "destructive" });
+        } finally {
+            setActing(false);
+        }
+    }
+
     if (!cert) return null;
+
     return (
-        <Dialog open={!!cert} onOpenChange={onClose}>
+        <Dialog open={!!cert} onOpenChange={(open) => {
+            if (!open) {
+                setShowRejectInput(false);
+                setRejectReason("");
+                onClose();
+            }
+        }}>
             <DialogContent className="sm:max-w-[500px]" dir="rtl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-[#1B4332]">
@@ -814,7 +1070,6 @@ function CertDetailDialog({ cert, onClose }: { cert: CertRequest | null; onClose
                         <InfoItem label="اسم البطولة" value={cert.championship_name} />
                     </div>
 
-                    {/* عرض زر ملف بطاقة الفارس إذا توفر */}
                     {cert.licence_card && (
                         <div className="pt-2">
                             <p className="text-[10px] text-[#40916C] uppercase font-black mb-1">المرفقات</p>
@@ -832,16 +1087,117 @@ function CertDetailDialog({ cert, onClose }: { cert: CertRequest | null; onClose
                         <InfoItem label="تاريخ الطلب" value={formatDate(cert.created_at)} />
                         <InfoItem label="الحالة"><StatusBadge status={cert.req_status} /></InfoItem>
                     </div>
+
+                    {/* --- قسم الإجراءات --- */}
+                    {cert.req_status === "قيد المراجعة" && (
+                        <div className="pt-4 border-t border-border mt-2">
+                            {!showRejectInput ? (
+                                <div className="flex items-center gap-3">
+                                    <Button
+                                        onClick={() => handleAction("approve")}
+                                        disabled={acting}
+                                        className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700"
+                                    >
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        إصدار الشهادة
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setShowRejectInput(true)}
+                                        disabled={acting}
+                                        className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                    >
+                                        <XCircle className="h-4 w-4" />
+                                        رفض الطلب
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-red-600">سبب الرفض *</label>
+                                        <textarea
+                                            required
+                                            className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200 focus:ring-1 focus:ring-red-500 outline-none"
+                                            placeholder="اكتب سبب الرفض هنا..."
+                                            value={rejectReason}
+                                            onChange={(e) => setRejectReason(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="destructive"
+                                            className="flex-1"
+                                            onClick={() => handleAction("reject")}
+                                            disabled={acting || !rejectReason.trim()}
+                                        >
+                                            {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض النهائي"}
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => {
+                                                setShowRejectInput(false);
+                                                setRejectReason("");
+                                            }}
+                                            disabled={acting}
+                                        >
+                                            إلغاء
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>
     );
 }
 
-function NoObjDetailDialog({ noObj, onClose }: { noObj: NoObjRequest | null; onClose: () => void }) {
+function NoObjDetailDialog({ noObj, userId, onClose }: { noObj: NoObjRequest | null; userId: string; onClose: () => void }) {
+    const { mutate } = useSWRConfig();
+    const { toast } = useToast();
+    const [acting, setActing] = useState(false);
+    const [rejectReason, setRejectReason] = useState("");
+    const [showRejectInput, setShowRejectInput] = useState(false);
+
+    async function handleAction(action: "approve" | "reject") {
+        if (!noObj) return;
+        if (action === "reject" && !rejectReason.trim()) return;
+
+        setActing(true);
+        try {
+            // ملاحظة: تأكد من مسار الـ API الصحيح واسم معرف الطلب (مثلاً noObj.request_id)
+            const res = await fetch(`/api/staff/no-obj-requests/${noObj.request_id}/${action}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ note: action === "reject" ? rejectReason : null }),
+            });
+
+            if (!res.ok) throw new Error("فشل تنفيذ الإجراء");
+
+            toast({ title: "تم بنجاح", description: "تم تحديث حالة طلب عدم الممانعة بنجاح" });
+            mutate(`/api/staff/requests?user_id=${userId}`);
+            
+            onClose();
+            setShowRejectInput(false);
+            setRejectReason("");
+        } catch (error) {
+            toast({ title: "خطأ", description: "حدث خطأ أثناء تنفيذ العملية", variant: "destructive" });
+        } finally {
+            setActing(false);
+        }
+    }
+
     if (!noObj) return null;
+
     return (
-        <Dialog open={!!noObj} onOpenChange={onClose}>
+        <Dialog open={!!noObj} onOpenChange={(open) => {
+            if (!open) {
+                setShowRejectInput(false);
+                setRejectReason("");
+                onClose();
+            }
+        }}>
             <DialogContent className="sm:max-w-[500px]" dir="rtl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-[#1B4332]">
@@ -851,16 +1207,77 @@ function NoObjDetailDialog({ noObj, onClose }: { noObj: NoObjRequest | null; onC
                 <div className="grid grid-cols-1 gap-4 py-4 text-right">
                     <InfoItem label="اسم الفارس" value={noObj.full_name} />
                     <InfoItem label="الدولة المتوجه إليها" value={noObj.country_from} />
-                    {/* زر عرض نسخة الجواز */}
+                    
                     {noObj.licence_card && (
                         <a href={noObj.licence_card} target="_blank" className="flex items-center justify-center gap-2 w-full p-3 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors border border-slate-200 text-sm font-bold text-slate-700">
                             <ExternalLink className="h-4 w-4" /> عرض بطاقة الفارس
                         </a>
                     )}
+
                     <div className="flex justify-between items-center border-t pt-4 mt-2">
                         <InfoItem label="تاريخ الطلب" value={formatDate(noObj.created_at)} />
                         <InfoItem label="الحالة"><StatusBadge status={noObj.req_status} /></InfoItem>
                     </div>
+
+                    {/* --- قسم الإجراءات --- */}
+                    {noObj.req_status === "قيد المراجعة" && (
+                        <div className="pt-4 border-t border-border mt-2">
+                            {!showRejectInput ? (
+                                <div className="flex items-center gap-3">
+                                    <Button
+                                        onClick={() => handleAction("approve")}
+                                        disabled={acting}
+                                        className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700"
+                                    >
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        إصدار الخطاب
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setShowRejectInput(true)}
+                                        disabled={acting}
+                                        className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                    >
+                                        <XCircle className="h-4 w-4" />
+                                        رفض الطلب
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-red-600">سبب الرفض *</label>
+                                        <textarea
+                                            required
+                                            className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200 focus:ring-1 focus:ring-red-500 outline-none"
+                                            placeholder="اكتب سبب الرفض هنا..."
+                                            value={rejectReason}
+                                            onChange={(e) => setRejectReason(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="destructive"
+                                            className="flex-1"
+                                            onClick={() => handleAction("reject")}
+                                            disabled={acting || !rejectReason.trim()}
+                                        >
+                                            {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض النهائي"}
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => {
+                                                setShowRejectInput(false);
+                                                setRejectReason("");
+                                            }}
+                                            disabled={acting}
+                                        >
+                                            إلغاء
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>
@@ -870,10 +1287,12 @@ function NoObjDetailDialog({ noObj, onClose }: { noObj: NoObjRequest | null; onC
 
 function ChampDetailDialog({
     champId,
+    userId, // إضافة userId لتحديث البيانات
     open,
     onOpenChange,
 }: {
     champId: string | null;
+    userId: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }) {
@@ -882,8 +1301,49 @@ function ChampDetailDialog({
         fetcher
     );
 
+    const { mutate } = useSWRConfig();
+    const { toast } = useToast();
+    const [acting, setActing] = useState(false);
+    const [rejectReason, setRejectReason] = useState("");
+    const [showRejectInput, setShowRejectInput] = useState(false);
+
+    async function handleAction(action: "approve" | "reject") {
+        if (!champId || !data) return;
+        if (action === "reject" && !rejectReason.trim()) return;
+
+        setActing(true);
+        try {
+            const res = await fetch(`/api/staff/championships/${champId}/${action}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ note: action === "reject" ? rejectReason : null }),
+            });
+
+            if (!res.ok) throw new Error("فشل تنفيذ الإجراء");
+
+            toast({ title: "تم بنجاح", description: "تم تحديث حالة البطولة بنجاح" });
+            
+            // تحديث جدول الطلبات (تأكد من مطابقة المسار للمستخدم الحالي)
+            mutate(`/api/staff/requests?user_id=${userId}`);
+            
+            onOpenChange(false);
+            setShowRejectInput(false);
+            setRejectReason("");
+        } catch (error) {
+            toast({ title: "خطأ", description: "حدث خطأ أثناء تنفيذ العملية", variant: "destructive" });
+        } finally {
+            setActing(false);
+        }
+    }
+
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={(val) => {
+            if (!val) {
+                setShowRejectInput(false);
+                setRejectReason("");
+            }
+            onOpenChange(val);
+        }}>
             <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto" dir="rtl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-[#1B4332]">
@@ -985,6 +1445,66 @@ function ChampDetailDialog({
                                 {data.total_prizes.toLocaleString("ar-SA")} ر.س
                             </span>
                         </div>
+
+                        {/* --- قسم الإجراءات الجديد --- */}
+                        {data.status === "قيد المراجعة" && (
+                            <div className="pt-4 border-t border-border mt-2">
+                                {!showRejectInput ? (
+                                    <div className="flex items-center gap-3">
+                                        <Button
+                                            onClick={() => handleAction("approve")}
+                                            disabled={acting}
+                                            className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700 font-bold"
+                                        >
+                                            <CheckCircle2 className="h-4 w-4" />
+                                            اعتماد البطولة
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setShowRejectInput(true)}
+                                            disabled={acting}
+                                            className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold"
+                                        >
+                                            <XCircle className="h-4 w-4" />
+                                            رفض الطلب
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-red-600">سبب رفض البطولة *</label>
+                                            <textarea
+                                                required
+                                                className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200 focus:ring-1 focus:ring-red-500 outline-none"
+                                                placeholder="اكتب ملاحظاتك للنادي هنا..."
+                                                value={rejectReason}
+                                                onChange={(e) => setRejectReason(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="destructive"
+                                                className="flex-1 font-bold"
+                                                onClick={() => handleAction("reject")}
+                                                disabled={acting || !rejectReason.trim()}
+                                            >
+                                                {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض النهائي"}
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                onClick={() => {
+                                                    setShowRejectInput(false);
+                                                    setRejectReason("");
+                                                }}
+                                                disabled={acting}
+                                            >
+                                                إلغاء
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </DialogContent>

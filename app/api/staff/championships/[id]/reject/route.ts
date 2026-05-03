@@ -16,45 +16,40 @@ export async function PATCH(
         }
 
         const result = await withTransaction(async (client) => {
-            // 1. جلب بيانات صاحب الطلب قبل التحديث
+            // 1. استخدام الدالة الخاصة بك لجلب بيانات النادي والمستخدم
             const queryData = await client.query(`
-                SELECT 
-                    email, 
-                    full_name
-                FROM public.leave_request 
-                WHERE request_id = $1
+                SELECT email, club_name FROM champ_sendpulse_data($1)
             `, [id]);
 
             if (queryData.rows.length === 0) {
                 throw new Error("NOT_FOUND");
             }
 
-            const requestData = queryData.rows[0];
+            const data = queryData.rows[0];
 
-            // 2. تحديث حالة الطلب وإضافة الملاحظة
+            // 2. تحديث حالة البطولة وإضافة الملاحظة
             await client.query(`
-                UPDATE public.leave_request
-                SET req_status = 'مرفوض', 
+                UPDATE public.championships
+                SET status = 'مرفوض', 
                     note = $1
-                WHERE request_id = $2 
-                
+                WHERE championships_id = $2
             `, [note, id]);
 
-            return requestData;
+            return data;
         });
 
         // 3. إعداد محتوى البريد الإلكتروني للرفض
         const emailHtml = `
             <div dir="rtl" style="font-family: sans-serif; text-align: right; line-height: 1.6; color: #1A1A1A;">
-                <h2 style="color: #C53030;">مرحباً ${result.full_name}،</h2>
-                <p>نود إفادتكم بأنه تعذر قبول طلب التفرغ الخاص بكم.</p>
+                <h2 style="color: #C53030;">مرحباً بنادي ${result.club_name}،</h2>
+                <p>نحيطكم علماً بأنه تعذر قبول طلب إقامة البطولة المقدم من قبلكم.</p>
                 
                 <div style="background-color: #FFF5F5; border-right: 4px solid #C53030; padding: 15px; margin: 20px 0; color: #C53030; border-radius: 4px;">
                     <strong>سبب الرفض المذكور:</strong><br/>
                     ${note}
                 </div>
 
-                
+                <p>يمكنكم مراجعة المتطلبات وتعديل الطلب عبر المنصة لإعادة التقديم.</p>
                 <br/>
                 <hr style="border: 0; border-top: 1px solid #EEE;" />
                 <p style="font-size: 12px; color: #666; text-align: center;">هذا البريد مرسل آلياً من نظام الاتحاد السعودي للفروسية والبولو.</p>
@@ -65,7 +60,7 @@ export async function PATCH(
         if (result.email) {
             sendPulseEmail({
                 to: result.email,
-                subject: "تحديث بشأن طلب التفرغ - الاتحاد السعودي للفروسية والبولو",
+                subject: "تحديث بشأن طلب إقامة بطولة - الاتحاد السعودي للفروسية والبولو",
                 html: emailHtml,
             });
         }
@@ -74,12 +69,12 @@ export async function PATCH(
 
     } catch (error: any) {
         if (error.message === "NOT_FOUND") {
-            return NextResponse.json({ error: "الطلب غير موجود" }, { status: 404 });
+            return NextResponse.json({ error: "البطولة غير موجودة" }, { status: 404 });
         }
         
-        console.error("Error rejecting leave request:", error);
+        console.error("Error rejecting championship:", error);
         return NextResponse.json(
-            { error: "حدث خطأ أثناء معالجة رفض الطلب" },
+            { error: "حدث خطأ أثناء معالجة رفض البطولة" },
             { status: 500 }
         );
     }

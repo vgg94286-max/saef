@@ -17,6 +17,7 @@ export type StaffJWTPayload = BaseJWTPayload & {
   role: "staff"
   staff_id: string
   staff_name: string
+  committee: string
   
 }
 

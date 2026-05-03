@@ -99,26 +99,66 @@ useEffect(() => {
 }, [toast]); // Added toast to dependency array for safety
 
   const onSubmit = async (data: NewRequestFormData) => {
-    setIsLoading(true)
-    setEmail(data.email)
-    setFormData(data)
-    try {
-      const res = await fetch("/api/check-user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.email, role: "requester" }),
-      })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error)
-      
-      setUserId(result.userId)
-      setShowOTP(true)
-    } catch (err: any) {
-      toast({ title: "خطأ", description: err.message, variant: "destructive" })
-    } finally {
-      setIsLoading(false)
+  setIsLoading(true);
+  setEmail(data.email);
+  setFormData(data);
+
+  try {
+    // 1. التحقق من رقم الفارس أولاً
+    const checkRes = await fetch(`/api/check-riderid`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: data.rider_id })
+    });
+
+    // إذا كان السيرفر يرجع 404 عند عدم وجود الفارس
+    if (checkRes.status === 404) {
+      throw new Error("رقم الفارس غير صحيح أو لا يوجد في النظام");
     }
+
+    if (!checkRes.ok) {
+      throw new Error("حدث خطأ أثناء التحقق من صحة رقم الفارس");
+    }
+
+    // 2. إذا نجح التحقق، نقوم بفحص المستخدم أو إنشائه
+    const res = await fetch("/api/check-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: data.email, role: "requester" }),
+    });
+
+    const result = await res.json().catch(() => ({ error: "خطأ في معالجة بيانات المستخدم" }));
+
+    // معالجة حالة البريد المسجل مسبقاً (خطأ منطقي 400)
+    if (res.status === 400) {
+      toast({
+        title: "البريد الالكتروني مسجل مسبقاً",
+        description: "يرجى تسجيل الدخول لمتابعة طلباتك السابقة أو إنشاء طلب جديد",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return; 
+    }
+
+    if (!res.ok) {
+      throw new Error(result.error || "فشل التحقق من البريد الإلكتروني");
+    }
+
+    // 3. نجاح جميع العمليات
+    setUserId(result.userId);
+    setShowOTP(true);
+
+  } catch (err: any) {
+    // إمساك أي خطأ (من رقم الفارس أو من التحقق من المستخدم)
+    toast({ 
+      title: "حدث خطأ", 
+      description: err.message || "حدث خطأ غير متوقع", 
+      variant: "destructive" 
+    });
+  } finally {
+    setIsLoading(false);
   }
+};
 
   const handleOTPVerify = async () => {
     if (!formData || !userId) return
@@ -137,7 +177,7 @@ useEffect(() => {
           requester_type: formData.requester_type,
           region: formData.region,
           cham_name: formData.cham_name,
-          employment_student_num: formData.employment_student_num ? Number(formData.employment_student_num) : null,
+          employment_student_num: formData.employment_student_num ? formData.employment_student_num : null,
           user_id: userId,
         }),
       })
@@ -152,9 +192,6 @@ useEffect(() => {
     }
   }
   
-const onInvalid = (errors: any) => {
-  console.error("FORM VALIDATION FAILED:", errors);
-};
 
   return (
     <>
@@ -164,7 +201,7 @@ const onInvalid = (errors: any) => {
 
 
 
-        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-5" dir="rtl">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" dir="rtl">
           <div className="grid gap-5 md:grid-cols-2">
             {/* Name */}
             <div className="space-y-2">
