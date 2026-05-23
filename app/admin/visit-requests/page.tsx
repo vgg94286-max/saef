@@ -17,9 +17,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Eye, FileText, CheckCircle2, XCircle, ImageIcon, ExternalLink, Loader2 } from "lucide-react";
+import { Eye, FileText, CheckCircle2, XCircle, ImageIcon, ExternalLink, Loader2, CalendarDays } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -33,6 +36,7 @@ type VisitRequest = {
   club_name: string;
   status: string;
   created_at: string;
+  visit_date: string | null; // تم الإضافة
 };
 
 type VisitDetail = VisitRequest & {
@@ -118,7 +122,6 @@ export default function VisitRequestsPage() {
         </Table>
       </div>
 
-      {/* Detail Modal */}
       <VisitDetailModal
         visitId={selectedId}
         open={detailOpen}
@@ -127,6 +130,7 @@ export default function VisitRequestsPage() {
     </div>
   );
 }
+
 function VisitDetailModal({
   visitId,
   open,
@@ -144,44 +148,129 @@ function VisitDetailModal({
     visitId && open ? `/api/get-from-s3/${visitId}` : null,
     fetcher
   );
+  const { toast } = useToast();
+  
   const [acting, setActing] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
+  
+  // حالات الرفض والقبول
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectInput, setShowRejectInput] = useState(false);
+  
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [showApproveInput, setShowApproveInput] = useState(false);
 
+  // دالة تحديد الموعد
+  async function handleScheduleDate() {
+    if (!visitId || !selectedDate) return;
+    setScheduling(true);
+    try {
+      const res = await fetch(`/api/admin/visit-requests/${visitId}/schedule`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visit_date: selectedDate }),
+      });
+      
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "فشل تحديد الموعد");
+
+      toast({ title: "تم بنجاح", description: "تم تحديد الموعد وإرسال الإشعارات." });
+      mutate(`/api/admin/visit-requests/${visitId}`);
+      mutate("/api/admin/visit-requests");
+    } catch (err: any) {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    } finally {
+      setScheduling(false);
+    }
+  }
+
+  // دالة القبول والرفض
   async function handleAction(action: "approve" | "reject") {
     if (!visitId) return;
     if (action === "reject" && !rejectReason.trim()) return;
+    if (action === "approve" && !selectedCategory) return;
 
     setActing(true);
     try {
       await fetch(`/api/admin/visit-requests/${visitId}/${action}`, {
         method: "PATCH",
-        body: JSON.stringify({ note: action === "reject" ? rejectReason : null }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          note: action === "reject" ? rejectReason : null,
+          category: action === "approve" ? selectedCategory : null
+        }),
       });
+      
       mutate("/api/admin/visit-requests");
+      resetStates();
       onOpenChange(false);
-      setShowRejectInput(false);
-      setRejectReason("");
+    } catch (err) {
+      toast({ title: "خطأ", description: "حدث خطأ غير متوقع", variant: "destructive" });
     } finally {
       setActing(false);
     }
   }
 
+  const resetStates = () => {
+    setShowRejectInput(false);
+    setRejectReason("");
+    setShowApproveInput(false);
+    setSelectedCategory("");
+    setSelectedDate("");
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(val) => {
+      if (!val) resetStates();
+      onOpenChange(val);
+    }}>
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto" dir="rtl">
         <DialogHeader>
-          <DialogTitle className="text-right">تفاصيل طلب الزيارة</DialogTitle>
+          <DialogTitle>تفاصيل طلب الزيارة</DialogTitle>
         </DialogHeader>
 
         {isLoading || !data ? (
           <div className="flex flex-col gap-3 py-6">
             <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-4 w-36" />
             <Skeleton className="h-32 w-full" />
           </div>
         ) : (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-5 mt-2">
+            
+            {/* تحديد تاريخ الزيارة */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <p className="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1.5">
+                <CalendarDays className="h-4 w-4" /> موعد الزيارة الميدانية
+              </p>
+              {data.visit_date ? (
+                <p className="text-sm font-bold text-emerald-700">
+                  تم التحديد: {new Date(data.visit_date).toISOString().split("T")[0]}
+                </p>
+              ) : data.status === "قيد المراجعة" ? (
+                <div className="flex gap-2 items-center">
+                  <Input 
+                    type="date" 
+                    className="max-w-[200px]"
+                    value={selectedDate} 
+                    onChange={(e) => setSelectedDate(e.target.value)} 
+                  />
+                  <Button 
+                    size="sm" 
+                    className="bg-emerald-700 hover:bg-emerald-800"
+                    disabled={!selectedDate || scheduling}
+                    onClick={handleScheduleDate}
+                  >
+                    {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الموعد وإرسال الدعوات"}
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  لا يمكن تحديد موعد (الطلب ليس قيد المراجعة)
+                </p>
+              )}
+            </div>
+
             {/* Info Section */}
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -192,117 +281,58 @@ function VisitDetailModal({
                 <p className="text-xs text-muted-foreground mb-1">الحالة</p>
                 <StatusBadge status={data.status} />
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">تاريخ الطلب</p>
-                <p className="text-sm">{new Date(data.created_at).toISOString().split("T")[0]}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">انتهاء الرخصة</p>
-                <p className="text-sm">
-                  {data.license_end_date
-                    ? new Date(data.license_end_date).toISOString().split("T")[0]
-                    : "غير متوفر"}
-                </p>
-              </div>
             </div>
-
-            {/* License Section */}
-            {files?.licenseUrl && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">رخصة نافس</p>
-                <a
-                  href={files.licenseUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-primary hover:underline font-medium"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  عرض رخصة نافس
-                </a>
-              </div>
-            )}
-
-            {/* Images Section */}
-            {files?.clubUrls && files.clubUrls.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
-                  <ImageIcon className="h-3.5 w-3.5" />
-                  صور الزيارة ({files.clubUrls.length})
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  {files.clubUrls.map((url, i) => (
-                    <a
-                      key={i}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block rounded-lg overflow-hidden border border-border hover:border-primary transition-colors"
-                    >
-                      <img
-                        src={url}
-                        alt="صورة الزيارة"
-                        className="w-full h-36 object-cover"
-                      />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Actions Section */}
             {data.status === "قيد المراجعة" && (
-              <div className="pt-4 border-t border-border">
-                {!showRejectInput ? (
+              <div className="pt-4 border-t border-border mt-2">
+                {!showRejectInput && !showApproveInput ? (
                   <div className="flex items-center gap-3">
-                    <Button
-                      onClick={() => handleAction("approve")}
-                      disabled={acting}
-                      className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      قبول الطلب
+                    <Button onClick={() => setShowApproveInput(true)} className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700">
+                      <CheckCircle2 className="h-4 w-4" /> قبول الطلب
                     </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowRejectInput(true)}
-                      disabled={acting}
-                      className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 "
-                    >
-                      <XCircle className="h-4 w-4" />
-                      رفض الطلب
+                    <Button variant="outline" onClick={() => setShowRejectInput(true)} className="gap-1.5 flex-1 border-red-200 text-red-600">
+                      <XCircle className="h-4 w-4" /> رفض الطلب
                     </Button>
                   </div>
+                ) : showApproveInput ? (
+                  <div className="space-y-3 p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-emerald-800">تحديد تصنيف النادي المعتمد *</label>
+                      <Select onValueChange={setSelectedCategory}>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="اختر التصنيف (A, B, C, D)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="A">تصنيف A</SelectItem>
+                          <SelectItem value="B">تصنيف B</SelectItem>
+                          <SelectItem value="C">تصنيف C</SelectItem>
+                          <SelectItem value="D">تصنيف D</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button className="flex-1 bg-emerald-700" onClick={() => handleAction("approve")} disabled={acting || !selectedCategory}>
+                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "اعتماد النادي النهائي"}
+                      </Button>
+                      <Button variant="ghost" onClick={resetStates} disabled={acting}>إلغاء</Button>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="space-y-3">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-red-600">سبب الرفض *</label>
                       <textarea
-                        required
-                        className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200 focus:ring-1 focus:ring-red-500 outline-none"
-                        placeholder="اكتب سبب الرفض هنا... (سيظهر للنادي)"
+                        className="w-full p-2 text-sm rounded-md border border-red-200"
                         value={rejectReason}
                         onChange={(e) => setRejectReason(e.target.value)}
                       />
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="destructive"
-                        className="flex-1"
-                        onClick={() => handleAction("reject")}
-                        disabled={acting || !rejectReason.trim()}
-                      >
-                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض النهائي"}
+                      <Button variant="destructive" className="flex-1" onClick={() => handleAction("reject")} disabled={acting || !rejectReason.trim()}>
+                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض"}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          setShowRejectInput(false);
-                          setRejectReason("");
-                        }}
-                        disabled={acting}
-                      >
-                        إلغاء
-                      </Button>
+                      <Button variant="ghost" onClick={resetStates} disabled={acting}>إلغاء</Button>
                     </div>
                   </div>
                 )}

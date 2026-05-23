@@ -21,8 +21,8 @@ const newRequestSchema = z.object({
   phone: z.string().min(10, "رقم الجوال مطلوب (10 أرقام)"),
   email: z.string().email("بريد إلكتروني غير صحيح"),
   rider_id: z.string().length(8, "رقم الفارس يجب أن يكون 8 أرقام"),
-  requester_type: z.enum(["مدرب", "حكم", "فارس"], { 
-    required_error: "يرجى اختيار نوع مقدم الطلب" 
+  requester_type: z.enum(["مدرب", "حكم", "فارس"], {
+    required_error: "يرجى اختيار نوع مقدم الطلب"
   }),
   region: z.string().min(1, "يرجى اختيار المنطقة"),
   cham_name: z.string().min(1, "يرجى اختيار البطولة"),
@@ -42,16 +42,27 @@ export function NewLeaveRequestFormLogged({ defaultNationalId, defaultEmail }: {
   const [email, setEmail] = useState("")
   const [userId, setUserId] = useState("")
   const [formData, setFormData] = useState<NewRequestFormData | null>(null)
-  
+
+  const [autoFilled, setAutoFilled] = useState({
+    name: false,
+    nationalId: false,
+    phone: false
+  });
+
+  // دالة مساعدة لفك القفل عن الحقول في حال حدوث خطأ أو تغيير الرقم
+  const unlockFields = () => {
+    setAutoFilled({ name: false, nationalId: false, phone: false });
+  };
+
   // Data for dropdowns
   const [regions, setRegions] = useState<Region[]>([]);
-  const [championships, setChampionships] = useState<{champ_id: number, champ_name: string}[]>([])
+  const [championships, setChampionships] = useState<{ champ_id: number, champ_name: string }[]>([])
 
-  
+
   const { toast } = useToast()
   const router = useRouter()
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<NewRequestFormData>({
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<NewRequestFormData>({
     resolver: zodResolver(newRequestSchema),
     defaultValues: {
       nationalId: defaultNationalId,
@@ -59,106 +70,181 @@ export function NewLeaveRequestFormLogged({ defaultNationalId, defaultEmail }: {
     }
   })
 
-  
+  // 2. إنشاء حالات (States) خاصة بالتحقق الفوري
+  const [isCheckingRider, setIsCheckingRider] = useState(false);
+  const [riderError, setRiderError] = useState("");
+
+  // 3. مراقبة قيمة حقل rider_id
+  const watchedRiderId = watch("rider_id");
+
+  useEffect(() => {
+    if (watchedRiderId && watchedRiderId.length === 8) {
+      const checkRiderId = async () => {
+        setIsCheckingRider(true);
+        setRiderError("");
+        try {
+          const checkRes = await fetch(`/api/check-riderid`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: watchedRiderId })
+          });
+
+          if (checkRes.status === 404) {
+            setRiderError("رقم الفارس غير صحيح أو لا يوجد");
+            unlockFields();
+          } else if (!checkRes.ok) {
+            setRiderError("حدث خطأ أثناء التحقق من رقم الفارس");
+            unlockFields();
+          } else {
+            // جلب البيانات الخام
+            const rawData = await checkRes.json();
 
 
-useEffect(() => {
-  const loadData = async () => {
-    try {
-      // Fetch both sources at once
-      const [regRes, champRes] = await Promise.all([
-        fetch("/data/regions.json"),
-        fetch("/api/public_champ")
-      ]);
 
-      const regData = await regRes.json();
-      const champData = await champRes.json();
+            // معالجة البيانات: إذا كانت مصفوفة نأخذ العنصر الأول، وإذا كانت مغلفة بـ data نأخذها
+            const riderData = Array.isArray(rawData) ? rawData[0] : rawData.data || rawData;
 
-      // 1. Set Regions (handling your specific JSON format)
-      const formattedRegions: Region[] = regData.map((reg: any) => ({
-        id: reg.region_id,
-        nameAr: reg.name.ar
-      }));
-      setRegions(formattedRegions);
+            // تتبع الحقول التي تم العثور عليها لقفلها
+            const lockedState = { name: false, nationalId: false, phone: false, email: false };
 
-      // 2. Set Championships
-      // Ensure champData is the array returned from your SELECT query
-      setChampionships(champData);
+            // تعبئة الحقول باستخدام setValue الخاصة بـ react-hook-form
+            if (riderData?.arabicFullName) {
+              setValue("name", riderData.arabicFullName, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+              lockedState.name = true;
+            }
+            if (riderData?.nationalId) {
+              setValue("nationalId", riderData.nationalId, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+              lockedState.nationalId = true;
+            }
+            if (riderData?.mobile) {
+              // بعض الـ APIs تعيد الرقم مع مفتاح الدولة 966، يمكنك تنظيفه هنا إذا أردت
+              setValue("phone", riderData.mobile, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+              lockedState.phone = true;
+            }
 
-    } catch (err) {
-      console.error("Error loading dropdown data:", err);
-      toast({
-        title: "خطأ في تحميل البيانات",
-        description: "تعذر تحميل قائمة المناطق أو البطولات",
-        variant: "destructive",
-      });
+
+            setAutoFilled(lockedState);
+
+            toast({
+              title: "تم التحقق بنجاح",
+              description: "تم سحب بيانات الفارس المعتمدة تلقائياً.",
+              variant: "default",
+            });
+          }
+        } catch (err) {
+          console.error("Fetch error:", err);
+          setRiderError("فشل الاتصال بالخادم للتحقق من الرقم");
+          unlockFields();
+        } finally {
+          setIsCheckingRider(false);
+        }
+      };
+
+      checkRiderId();
+    } else {
+      setRiderError("");
+      unlockFields();
     }
-  };
+  }, [watchedRiderId, setValue, toast]);
 
-  loadData();
-}, [toast]); // Added toast to dependency array for safety
+
+
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Fetch both sources at once
+        const [regRes, champRes] = await Promise.all([
+          fetch("/data/regions.json"),
+          fetch("/api/public_champ")
+        ]);
+
+        const regData = await regRes.json();
+        const champData = await champRes.json();
+
+        // 1. Set Regions (handling your specific JSON format)
+        const formattedRegions: Region[] = regData.map((reg: any) => ({
+          id: reg.region_id,
+          nameAr: reg.name.ar
+        }));
+        setRegions(formattedRegions);
+
+        // 2. Set Championships
+        // Ensure champData is the array returned from your SELECT query
+        setChampionships(champData);
+
+      } catch (err) {
+        console.error("Error loading dropdown data:", err);
+        toast({
+          title: "خطأ في تحميل البيانات",
+          description: "تعذر تحميل قائمة المناطق أو البطولات",
+          variant: "destructive",
+        });
+      }
+    };
+
+    loadData();
+  }, [toast]); // Added toast to dependency array for safety
 
   const onSubmit = async (data: NewRequestFormData) => {
-  setIsLoading(true);
-  setEmail(data.email);
-  setFormData(data);
 
-  try {
-    // 1. التحقق من رقم الفارس أولاً
-    const checkRes = await fetch(`/api/check-riderid`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: data.rider_id })
-    });
-
-    // إذا كان السيرفر يرجع 404 عند عدم وجود الفارس
-    if (checkRes.status === 404) {
-      throw new Error("رقم الفارس غير صحيح أو لا يوجد في النظام");
-    }
-
-    if (!checkRes.ok) {
-      throw new Error("حدث خطأ أثناء التحقق من صحة رقم الفارس");
-    }
-
-    // 2. إذا نجح التحقق، نقوم بفحص المستخدم أو إنشائه
-    const res = await fetch("/api/check-user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: data.email, role: "requester" }),
-    });
-
-    const result = await res.json().catch(() => ({ error: "خطأ في معالجة بيانات المستخدم" }));
-
-    // معالجة حالة البريد المسجل مسبقاً (خطأ منطقي 400)
-    if (res.status === 400) {
+    // منع الإرسال إذا كان الفحص الفوري قد عثر على خطأ مسبقاً
+    if (riderError) {
       toast({
-        title: "البريد الالكتروني مسجل مسبقاً",
-        description: "يرجى تسجيل الدخول لمتابعة طلباتك السابقة أو إنشاء طلب جديد",
+        title: "تنبيه",
+        description: riderError,
         variant: "destructive",
       });
+      return;
+    }
+
+
+    setIsLoading(true);
+    setEmail(data.email);
+    setFormData(data);
+
+    try {
+
+
+      // 2. إذا نجح التحقق، نقوم بفحص المستخدم أو إنشائه
+      const res = await fetch("/api/check-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email, role: "requester" }),
+      });
+
+      const result = await res.json().catch(() => ({ error: "خطأ في معالجة بيانات المستخدم" }));
+
+      // معالجة حالة البريد المسجل مسبقاً (خطأ منطقي 400)
+      if (res.status === 400) {
+        toast({
+          title: "البريد الالكتروني مسجل مسبقاً",
+          description: "يرجى تسجيل الدخول لمتابعة طلباتك السابقة أو إنشاء طلب جديد",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error(result.error || "فشل التحقق من البريد الإلكتروني");
+      }
+
+      // 3. نجاح جميع العمليات
+      setUserId(result.userId);
+      setShowOTP(true);
+
+    } catch (err: any) {
+      // إمساك أي خطأ (من رقم الفارس أو من التحقق من المستخدم)
+      toast({
+        title: "حدث خطأ",
+        description: err.message || "حدث خطأ غير متوقع",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-      return; 
     }
-
-    if (!res.ok) {
-      throw new Error(result.error || "فشل التحقق من البريد الإلكتروني");
-    }
-
-    // 3. نجاح جميع العمليات
-    setUserId(result.userId);
-    setShowOTP(true);
-
-  } catch (err: any) {
-    // إمساك أي خطأ (من رقم الفارس أو من التحقق من المستخدم)
-    toast({ 
-      title: "حدث خطأ", 
-      description: err.message || "حدث خطأ غير متوقع", 
-      variant: "destructive" 
-    });
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const handleOTPVerify = async () => {
     if (!formData || !userId) return
@@ -191,7 +277,7 @@ useEffect(() => {
       setShowOTP(false)
     }
   }
-  
+
 
   return (
     <>
@@ -203,49 +289,66 @@ useEffect(() => {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" dir="rtl">
           <div className="grid gap-5 md:grid-cols-2">
+
+            {/* Rider ID (8 digits) */}
+            <div className="space-y-2">
+              <Label>رقم العضوية</Label>
+              <div className="relative">
+                <Hash className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  {...register("rider_id")}
+                  maxLength={8}
+                  placeholder="00000000"
+                  className="pr-10"
+                />
+                {isCheckingRider && (
+                  <Loader2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              {/* عرض الخطأ الفوري الخاص بالـ API أو خطأ الـ Zod Schema */}
+              {riderError ? (
+                <p className="text-xs text-destructive">{riderError}</p>
+              ) : errors.rider_id ? (
+                <p className="text-xs text-destructive">{errors.rider_id.message}</p>
+              ) : null}
+            </div>
             {/* Name */}
             <div className="space-y-2">
               <Label>الاسم الرباعي</Label>
               <div className="relative">
                 <User className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input {...register("name")} className="pr-10" />
+                <Input
+                  {...register("name")}
+                  className={`pr-10 ${autoFilled.name ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}`}
+                  readOnly={autoFilled.name}
+                />
               </div>
               {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
 
             <div className="space-y-2">
-  <Label>رقم الهوية الوطنية</Label>
-  <div className="relative">
-    {/* Ensure the name here matches "nationalId" in your Zod schema */}
-    <Input 
-      {...register("nationalId")} 
-      maxLength={10} 
-      placeholder="10xxxxxxxx"
-      defaultValue={defaultNationalId}
-      
-       
-    />
-  </div>
-  {errors.nationalId && (
-    <p className="text-xs text-destructive">{errors.nationalId.message}</p>
-  )}
-</div>
-
-            {/* Rider ID (8 digits) */}
-            <div className="space-y-2">
-              <Label>رقم الفارس (8 أرقام)</Label>
+              <Label>رقم الهوية الوطنية</Label>
               <div className="relative">
-                <Hash className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input {...register("rider_id")} maxLength={8} placeholder="00000000" className="pr-10" />
+                <Input
+                  {...register("nationalId")}
+                  maxLength={10}
+                  placeholder="10xxxxxxxx"
+                  className={autoFilled.nationalId ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}
+                  readOnly={autoFilled.nationalId}
+                />
               </div>
-              {errors.rider_id && <p className="text-xs text-destructive">{errors.rider_id.message}</p>}
+              {errors.nationalId && (
+                <p className="text-xs text-destructive">{errors.nationalId.message}</p>
+              )}
             </div>
+
+
 
             {/* Requester Type */}
             <div className="space-y-2">
               <Label>نوع مقدم الطلب</Label>
               {/* Requester Type */}
-<Select onValueChange={(v) => setValue("requester_type", v as any, { shouldValidate: true })}>
+              <Select onValueChange={(v) => setValue("requester_type", v as any, { shouldValidate: true })}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="اختر النوع" />
                 </SelectTrigger>
@@ -258,78 +361,81 @@ useEffect(() => {
               {errors.requester_type && <p className="text-xs text-destructive">{errors.requester_type.message}</p>}
             </div>
 
-           {/* Employment Name */}
-<div className="space-y-2">
-  <Label>المسمى الوظيفي / جهة العمل</Label>
-  <div className="relative">
-    <Building2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-    <Input {...register("employment_name")} className="pr-10" />
-  </div>
-  {errors.employment_name && <p className="text-xs text-destructive">{errors.employment_name.message}</p>}
-</div>
+            {/* Employment Name */}
+            <div className="space-y-2">
+              <Label>المسمى الوظيفي / جهة العمل</Label>
+              <div className="relative">
+                <Building2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input {...register("employment_name")} className="pr-10" />
+              </div>
+              {errors.employment_name && <p className="text-xs text-destructive">{errors.employment_name.message}</p>}
+            </div>
 
-{/* Student Number (REQUIRED) */}
-<div className="space-y-2">
-  <Label>الرقم الوظيفي / الجامعي</Label>
-  <div className="relative">
-    <GraduationCap className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-    <Input {...register("employment_student_num")} className="pr-10" />
-  </div>
-  {errors.employment_student_num && (
-    <p className="text-xs text-destructive">{errors.employment_student_num.message}</p>
-  )}
-</div>
+            {/* Student Number (REQUIRED) */}
+            <div className="space-y-2">
+              <Label>الرقم الوظيفي / الجامعي</Label>
+              <div className="relative">
+                <GraduationCap className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input {...register("employment_student_num")} className="pr-10" />
+              </div>
+              {errors.employment_student_num && (
+                <p className="text-xs text-destructive">{errors.employment_student_num.message}</p>
+              )}
+            </div>
 
             {/* Region (Dropdown) */}
-<div className="space-y-2">
-  <Label>المنطقة</Label>
-  {/* Region */}
-<Select onValueChange={(v) => setValue("region", v, { shouldValidate: true })}>
-    <SelectTrigger className="w-full pr-10">
-       {/* Added icon back for consistency */}
-      <Map className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      <SelectValue placeholder="اختر المنطقة" />
-    </SelectTrigger>
-    <SelectContent>
-      {regions.map((reg) => (
-        <SelectItem key={reg.id} value={reg.nameAr}>
-          {reg.nameAr}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-  {errors.region && <p className="text-xs text-destructive">{errors.region.message}</p>}
-</div>
+            <div className="space-y-2">
+              <Label>المنطقة</Label>
+              {/* Region */}
+              <Select onValueChange={(v) => setValue("region", v, { shouldValidate: true })}>
+                <SelectTrigger className="w-full pr-10">
 
- {/* Championship Name */}
-<div className="space-y-2 md:col-span-2">
-  <Label>اسم البطولة</Label>
-  <Select onValueChange={(v) => setValue("cham_name", v, { shouldValidate: true })}>
-    <SelectTrigger className={errors.cham_name ? "border-destructive" : ""}>
-      <Trophy className="ml-2 h-4 w-4 text-muted-foreground" />
-      <SelectValue placeholder="اختر البطولة" />
-    </SelectTrigger>
-    <SelectContent>
-      {Array.from(new Set(championships.map(c => c.champ_name))).map((name, index) => (
-        <SelectItem key={`champ-${index}`} value={name}>
-          {name}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-  {errors.cham_name && <p className="text-xs text-destructive">{errors.cham_name.message}</p>}
-</div>
-            
+                  <SelectValue placeholder="اختر المنطقة" />
+                </SelectTrigger>
+                <SelectContent>
+                  {regions.map((reg) => (
+                    <SelectItem key={reg.id} value={reg.nameAr}>
+                      {reg.nameAr}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.region && <p className="text-xs text-destructive">{errors.region.message}</p>}
+            </div>
+
+            {/* Championship Name */}
+            <div className="space-y-2 md:col-span-2">
+              <Label>اسم البطولة</Label>
+              <Select onValueChange={(v) => setValue("cham_name", v, { shouldValidate: true })}>
+                <SelectTrigger className={errors.cham_name ? "border-destructive" : ""}>
+                  <Trophy className="ml-2 h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="اختر البطولة" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from(new Set(championships.map(c => c.champ_name))).map((name, index) => (
+                    <SelectItem key={`champ-${index}`} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.cham_name && <p className="text-xs text-destructive">{errors.cham_name.message}</p>}
+            </div>
+
             {/* Phone & Email (Readonly logic remains) */}
             <div className="space-y-2">
-                <Label>رقم الجوال</Label>
-                <Input {...register("phone")} className="text-right" />
-                {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
+              <Label>رقم الجوال</Label>
+              <Input
+                {...register("phone")}
+                className={`text-right ${autoFilled.phone ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}`}
+                readOnly={autoFilled.phone}
+              />
+              {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
             </div>
             <div className="space-y-2">
-                <Label>البريد الإلكتروني</Label>
-                <Input {...register("email")} readOnly className="bg-slate-50" defaultValue={defaultEmail} />
-                {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+              <Label>البريد الإلكتروني</Label>
+              <Input {...register("email")} readOnly className="bg-slate-50" defaultValue={defaultEmail} />
+              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
           </div>
 

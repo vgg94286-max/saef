@@ -82,13 +82,12 @@ function NoObjDetailModal({ requestId, open, onOpenChange }: any) {
             <div className="grid grid-cols-1 gap-4 bg-slate-50 p-4 rounded-lg">
               <DetailBox label="الاسم الكامل" value={data.full_name} />
               <DetailBox label="البريد الإلكتروني" value={data.email} />
+              <DetailBox label="رقم الهوية" value={data.national_id} />
+              <DetailBox label="رقم العضوية" value={data.rider_id} />
+
               <DetailBox label="الدولة المقصودة" value={data.country_from} />
             </div>
-            {data.licence_card && (
-              <a href={data.licence_card} target="_blank" className="flex items-center justify-center gap-2 w-full p-3 bg-amber-50 text-amber-800 rounded-md hover:bg-amber-100 transition-colors border border-amber-200">
-                <ExternalLink className="h-4 w-4" /> عرض رخصة الفارس
-              </a>
-            )}
+            
             <ActionButtons requestId={requestId} status={data.req_status} endpoint="no-obj-requests" onOpenChange={onOpenChange} />
           </div>
         )}

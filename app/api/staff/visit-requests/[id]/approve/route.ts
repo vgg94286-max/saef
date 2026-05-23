@@ -76,6 +76,7 @@ const visitNote = await client.query(
 
         // تحديد نوع الملف برمجياً (حتى لو كان الرابط لا يحتوي على امتداد)
         let finalExtension = 'pdf';
+        if (result.license_file) {
         try {
             const fileCheck = await fetch(result.license_file, { method: 'HEAD' });
             const contentType = fileCheck.headers.get('content-type');
@@ -83,6 +84,7 @@ const visitNote = await client.query(
         } catch (e) {
             console.error("Mime type detection failed, using default:", e);
         }
+    }
 
         const attachmentName = `Visit_Documents_${id}.${finalExtension}`;
 

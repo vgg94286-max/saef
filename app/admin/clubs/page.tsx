@@ -74,16 +74,7 @@ export default function AdminClubsPage() {
         } finally { setIsSubmitting(false); }
     };
 
-    const updateStatus = async (club_id: string, new_status: string) => {
-        try {
-            await fetch("/api/admin/clubs", {
-                method: "PATCH",
-                body: JSON.stringify({ club_id, new_status })
-            });
-            mutate("/api/admin/clubs");
-            toast({ title: "تم التحديث", description: "تغيرت حالة الحساب بنجاح" });
-        } catch (e) { toast({ title: "خطأ", variant: "destructive" }); }
-    };
+   
 
     return (
         <div className="p-6 space-y-6" dir="rtl">
@@ -195,10 +186,12 @@ export default function AdminClubsPage() {
                         <TableRow>
                             <TableHead className="text-right">النادي</TableHead>
                             <TableHead className="text-right">المدينة</TableHead>
-                            <TableHead className="text-right">تاريخ انتهاء الرخصة</TableHead>
+                            <TableHead className="text-right">التصنيف</TableHead>
+                            <TableHead className="text-right">تاريخ انتهاء العضوية</TableHead>
+                            
                             <TableHead className="text-right">الرخصة</TableHead>
                             <TableHead className="text-right">الحالة</TableHead>
-                            <TableHead className="text-center">تغيير الحالة</TableHead>
+                            
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -210,10 +203,11 @@ export default function AdminClubsPage() {
                                         <p className="text-[10px] text-muted-foreground">{club.email}</p>
                                     </TableCell>
                                     <TableCell className="text-sm font-medium">{club.city}</TableCell>
+                                    <TableCell className="text-sm font-medium">{club.category || "غير مصنف"}</TableCell>
                                     <TableCell className="text-sm font-medium">
-                                        {club.license_end_date
-                                            ? new Date(club.license_end_date).toISOString().split("T")[0]
-                                            : "لا يوجد تاريخ انتهاء للرخصة"}
+                                        {club.membership_exp
+                                            ? new Date(club.membership_exp).toISOString().split("T")[0]
+                                            : "لا يوجد تاريخ انتهاء للعضوية"}
                                     </TableCell>
                                     <TableCell>
                                         {club.licence_file ? (
@@ -223,18 +217,7 @@ export default function AdminClubsPage() {
                                         ) : <span className="text-xs text-muted-foreground italic">لا يوجد ملف</span>}
                                     </TableCell>
                                     <TableCell><StatusBadge status={club.account_status} /></TableCell>
-                                    <TableCell className="flex justify-center">
-                                        <Select onValueChange={(v) => updateStatus(club.club_id, v)} defaultValue={club.account_status}>
-                                            <SelectTrigger className="w-[130px] h-8 text-xs">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="قيد المراجعة">قيد المراجعة</SelectItem>
-                                                <SelectItem value="مفعل">مفعل</SelectItem>
-                                                <SelectItem value="معطل">معطل</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </TableCell>
+                                    
                                 </TableRow>
                             ))}
                     </TableBody>

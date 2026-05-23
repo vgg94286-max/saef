@@ -27,6 +27,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { CalendarDays } from "lucide-react";
 
 import {
     ClipboardList,
@@ -63,6 +65,7 @@ type ChampDetail = Championship & {
 
 type VisitRequest = {
     visit_id: string;
+    visit_date: string | null
     club_name: string;
     status: string;
     created_at: string;
@@ -76,6 +79,7 @@ type CertRequest = {
     national_id: string;
     championship_name: string;
     req_status: string;
+    rider_id: number;
     licence_card: string | null; // أضف هذا الحقل
     created_at: string;
     request_type: "cert";
@@ -83,6 +87,8 @@ type CertRequest = {
 
 type NoObjRequest = {
     request_id: number;
+    national_id: string;
+    rider_id: number;
     full_name: string;
     country_from: string;
     req_status: string;
@@ -153,7 +159,7 @@ const LEAVE_LABELS: Record<string, string> = {
     employment_student_num: "الرقم الوظيفي/الجامعي",
     phone: "رقم الهاتف",
     email: "البريد الإلكتروني",
-    rider_id: "رقم الفارس",
+    rider_id: "رقم العضوية",
     requester_type: "نوع مقدم الطلب",
     region: "المنطقة الادارية لجهة العمل",
     cham_name: "اسم البطولة",
@@ -185,8 +191,7 @@ export default function StaffPortalPage() {
    
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" dir="rtl">
-            {/* Header Styled with Federation Colors */}
-            {/* Header Styled with Federation Colors */}
+            
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-gradient-to-br from-[#2D6A4F] to-[#1B4332] shadow-sm shrink-0">
@@ -469,7 +474,7 @@ function AllRequestsSection({ userId }: { userId: string }) {
                                         <TableRow>
                                             <TableHead className=" text-[#1B4332] font-bold">اسم النادي</TableHead>
                                             <TableHead className=" text-[#1B4332] font-bold">تاريخ الطلب</TableHead>
-                                            <TableHead className=" text-[#1B4332] font-bold">انتهاء الرخصة</TableHead>
+                                            <TableHead className=" text-[#1B4332] font-bold">انتهاء رخصة نافس</TableHead>
                                             <TableHead className=" text-[#1B4332] font-bold">الحالة</TableHead>
                                             <TableHead className="text-center text-[#1B4332] font-bold">الإجراء</TableHead>
                                         </TableRow>
@@ -495,7 +500,7 @@ function AllRequestsSection({ userId }: { userId: string }) {
                                     <TableHeader className="bg-[#f0f7f4]">
                                         <TableRow>
                                             <TableHead className="text-[#1B4332] font-bold">الاسم</TableHead>
-                                            <TableHead className="text-[#1B4332] font-bold">رقم الفارس</TableHead>
+                                            <TableHead className="text-[#1B4332] font-bold">رقم العضوية</TableHead>
                                             <TableHead className="text-[#1B4332] font-bold">جهة العمل</TableHead>
                                             <TableHead className="text-[#1B4332] font-bold">تاريخ الطلب</TableHead>
                                             <TableHead className="text-[#1B4332] font-bold">الحالة</TableHead>
@@ -747,34 +752,72 @@ function MyCommitteesSection({ userId }: { userId: string }) {
 function VisitDetailDialog({ visit, userId, onClose }: { visit: VisitRequest | null; userId: string; onClose: () => void }) {
     const { mutate } = useSWRConfig();
     const { toast } = useToast();
+    
     const [acting, setActing] = useState(false);
+    const [scheduling, setScheduling] = useState(false);
+    const [selectedDate, setSelectedDate] = useState("");
+    
+    // رفض وقبول
     const [rejectReason, setRejectReason] = useState("");
     const [showRejectInput, setShowRejectInput] = useState(false);
+    
+    const [selectedCategory, setSelectedCategory] = useState("");
+    const [showApproveInput, setShowApproveInput] = useState(false);
 
+    const resetStates = () => {
+        setShowRejectInput(false);
+        setRejectReason("");
+        setShowApproveInput(false);
+        setSelectedCategory("");
+        setSelectedDate("");
+    };
+
+    // تحديد الموعد من قبل الموظف
+    async function handleScheduleDate() {
+        if (!visit || !selectedDate) return;
+        setScheduling(true);
+        try {
+            const res = await fetch(`/api/admin/visit-requests/${visit.visit_id}/schedule`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ visit_date: selectedDate }),
+            });
+            const resData = await res.json();
+            if (!res.ok) throw new Error(resData.error || "فشل تحديد الموعد");
+
+            toast({ title: "تم بنجاح", description: "تم تحديد الموعد وإرسال الإشعارات للجنة والنادي." });
+            mutate(`/api/staff/requests?user_id=${userId}`);
+            onClose(); // نغلق النافذة لكي يتم تحديث البيانات
+        } catch (err: any) {
+            toast({ title: "خطأ", description: err.message, variant: "destructive" });
+        } finally {
+            setScheduling(false);
+        }
+    }
+
+    // القبول (مع التصنيف) أو الرفض
     async function handleAction(action: "approve" | "reject") {
         if (!visit) return;
         if (action === "reject" && !rejectReason.trim()) return;
+        if (action === "approve" && !selectedCategory) return;
 
         setActing(true);
         try {
-            // ملاحظة: تأكد من أن المسار هنا يطابق مجلد الـ API الخاص بك
-            // إذا كان المسار في مجلد admin بدلاً من staff، قم بتعديله إلى /api/admin/...
             const res = await fetch(`/api/staff/visit-requests/${visit.visit_id}/${action}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ note: action === "reject" ? rejectReason : null }),
+                body: JSON.stringify({ 
+                    note: action === "reject" ? rejectReason : null,
+                    category: action === "approve" ? selectedCategory : null 
+                }),
             });
 
             if (!res.ok) throw new Error("فشل تنفيذ الإجراء");
 
-            toast({ title: "تم بنجاح", description: "تم تحديث حالة طلب الزيارة بنجاح" });
-            
-            // تحديث بيانات الجدول
+            toast({ title: "تم بنجاح", description: "تم تحديث الحالة" });
             mutate(`/api/staff/requests?user_id=${userId}`);
-            
+            resetStates();
             onClose();
-            setShowRejectInput(false);
-            setRejectReason("");
         } catch (error) {
             toast({ title: "خطأ", description: "حدث خطأ أثناء تنفيذ العملية", variant: "destructive" });
         } finally {
@@ -787,8 +830,7 @@ function VisitDetailDialog({ visit, userId, onClose }: { visit: VisitRequest | n
     return (
         <Dialog open={!!visit} onOpenChange={(open) => {
             if (!open) {
-                setShowRejectInput(false);
-                setRejectReason("");
+                resetStates();
                 onClose();
             }
         }}>
@@ -798,72 +840,97 @@ function VisitDetailDialog({ visit, userId, onClose }: { visit: VisitRequest | n
                         <Eye className="h-5 w-5" /> تفاصيل طلب الزيارة
                     </DialogTitle>
                 </DialogHeader>
+
                 <div className="grid grid-cols-1 gap-4 py-4">
+                    
+                    {/* هذا الخيار أفضل لتجربة المستخدم */}
+<div className="bg-[#f0f7f4] p-4 rounded-xl border border-[#B7E4C7]">
+    <p className="text-xs font-bold text-[#1B4332] mb-2 flex items-center gap-1.5">
+        <CalendarDays className="h-4 w-4" /> موعد الزيارة الميدانية
+    </p>
+    
+    {visit.visit_date ? (
+        <p className="text-sm font-bold text-emerald-800">
+            تم التحديد: {new Date(visit.visit_date).toISOString().split("T")[0]}
+        </p>
+    ) : visit.status === "قيد المراجعة" ? (
+        <div className="flex gap-2 items-center mt-2">
+            <Input 
+                type="date" 
+                className="bg-white"
+                value={selectedDate} 
+                onChange={(e) => setSelectedDate(e.target.value)} 
+            />
+            <Button 
+                size="sm" 
+                className="bg-[#1B4332] hover:bg-[#2D6A4F]"
+                disabled={!selectedDate || scheduling}
+                onClick={handleScheduleDate}
+            >
+                {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : "إرسال الدعوات"}
+            </Button>
+        </div>
+    ) : (
+        <p className="text-sm text-muted-foreground italic">
+            لا يمكن تحديد موعد (الطلب ليس قيد المراجعة)
+        </p>
+    )}
+</div>
+
                     <InfoItem label="اسم النادي" value={visit.club_name} />
                     <InfoItem label="تاريخ التقديم" value={formatDate(visit.created_at)} />
-                    <InfoItem label="انتهاء الرخصة" value={visit.license_end_date ? formatDate(visit.license_end_date) : "غير متوفر"} />
                     <InfoItem label="الحالة"><StatusBadge status={visit.status} /></InfoItem>
-                    {visit.license_file && (
-                        <a href={visit.license_file} target="_blank" className="flex items-center justify-center gap-2 p-3 rounded-lg bg-[#1B4332] text-white text-sm font-bold shadow-sm">
-                            <ExternalLink className="h-4 w-4" /> فتح ملف الرخصة الرسمي
-                        </a>
-                    )}
                 </div>
 
-                {/* --- قسم الإجراءات (القبول / الرفض) --- */}
+                {/* --- قسم الإجراءات --- */}
                 {visit.status === "قيد المراجعة" && (
                     <div className="pt-4 border-t border-border mt-2">
-                        {!showRejectInput ? (
+                        {!showRejectInput && !showApproveInput ? (
                             <div className="flex items-center gap-3">
-                                <Button
-                                    onClick={() => handleAction("approve")}
-                                    disabled={acting}
-                                    className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700"
-                                >
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    قبول الطلب
+                                <Button onClick={() => setShowApproveInput(true)} className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700">
+                                    <CheckCircle2 className="h-4 w-4" /> قبول الطلب
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setShowRejectInput(true)}
-                                    disabled={acting}
-                                    className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                >
-                                    <XCircle className="h-4 w-4" />
-                                    رفض الطلب
+                                <Button variant="outline" onClick={() => setShowRejectInput(true)} className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50">
+                                    <XCircle className="h-4 w-4" /> رفض الطلب
                                 </Button>
                             </div>
-                        ) : (
-                            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                        ) : showApproveInput ? (
+                            <div className="space-y-3 p-4 bg-emerald-50 rounded-lg border border-emerald-100">
                                 <div className="space-y-1">
-                                    <label className="text-xs font-bold text-red-600">سبب الرفض *</label>
-                                    <textarea
-                                        required
-                                        className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200 focus:ring-1 focus:ring-red-500 outline-none"
-                                        placeholder="اكتب سبب الرفض هنا... (سيظهر للنادي)"
-                                        value={rejectReason}
-                                        onChange={(e) => setRejectReason(e.target.value)}
-                                    />
+                                    <label className="text-xs font-bold text-emerald-800">تحديد التصنيف للنادي *</label>
+                                    {/* تأكد من إضافة إستيرادات Select في أعلى الملف إذا لم تكن موجودة */}
+                                    <select 
+                                        className="w-full p-2 text-sm rounded-md border border-emerald-200 outline-none"
+                                        value={selectedCategory} 
+                                        onChange={(e) => setSelectedCategory(e.target.value)}
+                                    >
+                                        <option value="" disabled>اختر التصنيف</option>
+                                        <option value="A">تصنيف A</option>
+                                        <option value="B">تصنيف B</option>
+                                        <option value="C">تصنيف C</option>
+                                        <option value="D">تصنيف D</option>
+                                    </select>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="destructive"
-                                        className="flex-1"
-                                        onClick={() => handleAction("reject")}
-                                        disabled={acting || !rejectReason.trim()}
-                                    >
-                                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض النهائي"}
+                                    <Button className="flex-1 bg-emerald-700" onClick={() => handleAction("approve")} disabled={acting || !selectedCategory}>
+                                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "اعتماد وتحديث"}
                                     </Button>
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => {
-                                            setShowRejectInput(false);
-                                            setRejectReason("");
-                                        }}
-                                        disabled={acting}
-                                    >
-                                        إلغاء
+                                    <Button variant="ghost" onClick={resetStates} disabled={acting}>إلغاء</Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                <textarea
+                                    className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200"
+                                    placeholder="اكتب سبب الرفض هنا..."
+                                    value={rejectReason}
+                                    onChange={(e) => setRejectReason(e.target.value)}
+                                />
+                                <div className="flex items-center gap-2">
+                                    <Button variant="destructive" className="flex-1" onClick={() => handleAction("reject")} disabled={acting || !rejectReason.trim()}>
+                                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض"}
                                     </Button>
+                                    <Button variant="ghost" onClick={resetStates} disabled={acting}>إلغاء</Button>
                                 </div>
                             </div>
                         )}
@@ -1065,23 +1132,13 @@ function CertDetailDialog({ cert, userId, onClose }: { cert: CertRequest | null;
                 <div className="grid grid-cols-1 gap-4 py-4 text-right">
                     <InfoItem label="الاسم الكامل" value={cert.full_name} />
                     <InfoItem label="رقم الهوية" value={cert.national_id} />
+                    <InfoItem label="رقم العضوية" value={cert.rider_id.toString()} />
 
                     <div className="bg-[#f0f7f4] p-3 rounded-lg border border-[#B7E4C7]">
                         <InfoItem label="اسم البطولة" value={cert.championship_name} />
                     </div>
 
-                    {cert.licence_card && (
-                        <div className="pt-2">
-                            <p className="text-[10px] text-[#40916C] uppercase font-black mb-1">المرفقات</p>
-                            <a
-                                href={cert.licence_card}
-                                target="_blank"
-                                className="flex items-center justify-center gap-2 w-full p-3 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors border border-slate-200 text-sm font-bold text-slate-700"
-                            >
-                                <ExternalLink className="h-4 w-4" /> عرض ملف بطاقة الفارس
-                            </a>
-                        </div>
-                    )}
+                   
 
                     <div className="flex justify-between items-center border-t pt-4 mt-2">
                         <InfoItem label="تاريخ الطلب" value={formatDate(cert.created_at)} />
@@ -1207,6 +1264,8 @@ function NoObjDetailDialog({ noObj, userId, onClose }: { noObj: NoObjRequest | n
                 <div className="grid grid-cols-1 gap-4 py-4 text-right">
                     <InfoItem label="اسم الفارس" value={noObj.full_name} />
                     <InfoItem label="الدولة المتوجه إليها" value={noObj.country_from} />
+                    <InfoItem label="رقم العضوية" value={noObj.rider_id.toString()} />
+                     <InfoItem label="رقم الهوية" value={noObj.national_id} />
                     
                     {noObj.licence_card && (
                         <a href={noObj.licence_card} target="_blank" className="flex items-center justify-center gap-2 w-full p-3 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors border border-slate-200 text-sm font-bold text-slate-700">

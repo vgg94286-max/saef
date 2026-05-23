@@ -27,7 +27,7 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const { id } = await params;
-
+    const { category } = await _req.json();
     try {
         const result = await withTransaction(async (client) => {
             // جلب بيانات النادي والمستخدم عبر JOIN
@@ -58,13 +58,12 @@ const visitNote = await client.query(
                 
             `, [id]);
 
-            // 2. تحديث حالة حساب النادي
             await client.query(`
                 UPDATE public.clubs
-                SET account_status = 'مفعل'
-                WHERE club_id = $1
-                
-            `, [data.club_id]);
+                SET account_status = 'مفعل',
+                    category = $1
+                WHERE club_id = $2
+            `, [category, data.club_id]);
 
             return {
                 club_name: data.club_name,
@@ -76,6 +75,7 @@ const visitNote = await client.query(
 
         // تحديد نوع الملف برمجياً (حتى لو كان الرابط لا يحتوي على امتداد)
         let finalExtension = 'pdf';
+        if (result.license_file) {
         try {
             const fileCheck = await fetch(result.license_file, { method: 'HEAD' });
             const contentType = fileCheck.headers.get('content-type');
@@ -83,7 +83,7 @@ const visitNote = await client.query(
         } catch (e) {
             console.error("Mime type detection failed, using default:", e);
         }
-
+    }
         const attachmentName = `Visit_Documents_${id}.${finalExtension}`;
 
         // محتوى البريد الإلكتروني

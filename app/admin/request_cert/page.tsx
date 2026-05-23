@@ -87,17 +87,15 @@ function CertDetailModal({ requestId, open, onOpenChange }: any) {
             <div className="grid grid-cols-2 gap-4">
               <DetailBox label="الاسم الرباعي" value={data.full_name} />
               <DetailBox label="رقم الهوية" value={data.national_id} />
+              <DetailBox label="رقم العضوية" value={data.rider_id} className="col-span-2" />
               <DetailBox label="البريد الإلكتروني" value={data.email} className="col-span-2" />
+
             </div>
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
               <p className="text-xs text-blue-700 font-bold mb-1">اسم البطولة</p>
               <p className="font-semibold">{data.championship_name}</p>
             </div>
-            {data.licence_card && (
-              <a href={data.licence_card} target="_blank" className="flex items-center justify-center gap-2 w-full p-3 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors border border-slate-200">
-                <ExternalLink className="h-4 w-4" /> عرض ملف بطاقة الفارس
-              </a>
-            )}
+            
             
             {/* تم تحديث مكون الأزرار لاستقبال الملاحظة */}
             <ActionButtons 

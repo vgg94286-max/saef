@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { PageHeader } from "@/components/page-header"
+import { PageHeader } from "@/components/page-header-req"
 import { Footer } from "@/components/footer"
 import { NewLeaveRequestForm } from "@/components/request-no-objection-forms/new-request-form"
 import { PreviousRequestsForm } from "@/components/request-no-objection-forms/previous-requests-form"

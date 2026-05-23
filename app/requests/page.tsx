@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { FileText, ClipboardCheck, ShieldCheck } from 'lucide-react';
-import { PageHeader } from "@/components/page-header"
+import { PageHeader } from "@/components/page-header";
 import { Footer } from "@/components/footer"
 
 const RequestSelectionPage = () => {

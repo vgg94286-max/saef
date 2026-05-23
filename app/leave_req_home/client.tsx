@@ -37,18 +37,7 @@ const CertRequestContent = ({ data, statusLabels }: any) => (
     <DetailItem label="الاسم الكامل" value={data.full_name} />
     <DetailItem label="الهوية الوطنية" value={data.national_id} />
     <DetailItem label="البريد الإلكتروني" value={data.email} />
-    <div className="flex flex-col gap-1">
-      <p className="text-xs text-muted-foreground font-medium">بطاقة الفارس</p>
-      <a 
-        href={data.licence_card} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="flex items-center gap-2 text-emerald-700 hover:text-emerald-900 font-bold underline"
-      >
-        <FileText className="h-4 w-4" />
-        عرض الملف المرفق
-      </a>
-    </div>
+    <DetailItem label="رقم العضوية" value={data.rider_id} />
     <div className="col-span-2 bg-blue-50 p-3 rounded-lg border border-blue-100">
       <DetailItem label="اسم البطولة" value={data.championship_name} />
     </div>
@@ -59,19 +48,9 @@ const CertRequestContent = ({ data, statusLabels }: any) => (
 const NoObjRequestContent = ({ data, statusLabels }: any) => (
   <div className="grid grid-cols-2 gap-y-4 gap-x-6 mt-6 text-sm">
     <DetailItem label="الاسم الكامل" value={data.full_name} />
+    <DetailItem label="الهوية الوطنية" value={data.national_id} />
     <DetailItem label="البريد الإلكتروني" value={data.email} />
-    <div className="flex flex-col gap-1">
-      <p className="text-xs text-muted-foreground font-medium">بطاقة الفارس</p>
-      <a 
-        href={data.licence_card} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="flex items-center gap-2 text-emerald-700 hover:text-emerald-900 font-bold underline"
-      >
-        <FileText className="h-4 w-4" />
-        عرض الملف المرفق
-      </a>
-    </div>
+    <DetailItem label="رقم العضوية" value={data.rider_id} />
     <div className="col-span-2 bg-amber-50 p-3 rounded-lg border border-amber-100">
       <DetailItem label="الدولة المتوجه إليها" value={data.country_from} />
     </div>

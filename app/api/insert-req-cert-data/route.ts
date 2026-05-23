@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
           national_id,
           championship_name,
           email,
-          knight_license_url,
+          rider_id,
           user_id
     } = body;
 
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       !national_id ||
       !championship_name ||
       !email ||
-      !knight_license_url ||
+      !rider_id ||
       
       !user_id
     ) {
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
           national_id,
           championship_name,
           email,
-          licence_card,
+          rider_id,
           user_id
         )
         VALUES (
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
           national_id,
           championship_name,
           email,
-          knight_license_url,
+          parseInt(rider_id),
           user_id,
         ]
       );
