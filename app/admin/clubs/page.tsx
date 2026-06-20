@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+
 import useSWR, { mutate } from "swr";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, ExternalLink, Loader2 } from "lucide-react";
+import { Plus, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -25,6 +26,7 @@ export default function AdminClubsPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [cityOpen, setCityOpen] = useState(false)
+    const [isSyncing, setIsSyncing] = useState(false); // حالة المزامنة التلقائية
     const { toast } = useToast();
 
 
@@ -47,6 +49,53 @@ export default function AdminClubsPage() {
         account_status: "مفعل",
         license_end_date: ""
     });
+
+    // 1. المزامنة التلقائية (مرة واحدة كل 24 ساعة)
+    useEffect(() => {
+        const performSync = async () => {
+            setIsSyncing(true);
+            try {
+                const res = await fetch("/api/admin/clubs/sync", { method: "POST" });
+                if (res.ok) {
+                    mutate("/api/admin/clubs");
+                    // حفظ وقت المزامنة الحالي في المتصفح
+                    localStorage.setItem("last_club_sync", new Date().toISOString());
+                }
+            } catch (error) {
+                console.error("Auto-sync failed:", error);
+            } finally {
+                setIsSyncing(false);
+            }
+        };
+
+        const checkAndSync = () => {
+            const lastSync = localStorage.getItem("last_club_sync");
+            
+            // إذا لم تكن هناك مزامنة سابقة أبداً، قم بالمزامنة
+            if (!lastSync) {
+                performSync();
+                return;
+            }
+
+            const lastSyncDate = new Date(lastSync);
+            const now = new Date();
+            const timeDiff = now.getTime() - lastSyncDate.getTime();
+            const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+            // إذا مر 24 ساعة (أو أكثر) على آخر مزامنة
+            if (hoursDiff >= 24) {
+                performSync();
+            }
+        };
+
+        // التحقق فوراً عند فتح الصفحة
+        checkAndSync();
+
+        // فحص دوري كل ساعة (في حال ترك المسؤول الصفحة مفتوحة لفترة طويلة)
+        const intervalId = setInterval(checkAndSync, 60 * 60 * 1000);
+
+        return () => clearInterval(intervalId);
+    }, []);
 
     // جلب المدن من ملف JSON
     useEffect(() => {
@@ -79,10 +128,16 @@ export default function AdminClubsPage() {
     return (
         <div className="p-6 space-y-6" dir="rtl">
             <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold text-[#1B4332]">إدارة حسابات الأندية</h1>
-                    <p className="text-sm text-muted-foreground">عرض وتفعيل حسابات الأندية المعتمدة</p>
-                </div>
+                <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-bold text-[#1B4332]">إدارة حسابات الأندية</h1>
+                        
+                        {/* مؤشر المزامنة التلقائية الذكي */}
+                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-100 text-[11px] text-muted-foreground border">
+                            <RefreshCw className={`h-3 w-3 text-emerald-600 ${isSyncing ? "animate-spin" : ""}`} />
+                            <span>{isSyncing ? "جاري التحديث الآلي..." : "مزامنة كل 30 ث"}</span>
+                        </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">عرض وتفعيل حسابات الأندية المعتمدة ومزامنتها دورياً</p>
 
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                     <DialogTrigger asChild>

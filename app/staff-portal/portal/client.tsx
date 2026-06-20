@@ -749,9 +749,15 @@ function MyCommitteesSection({ userId }: { userId: string }) {
 
 /* ========== Dialog Components ========== */
 
-function VisitDetailDialog({ visit, userId, onClose }: { visit: VisitRequest | null; userId: string; onClose: () => void }) {
+export function VisitDetailDialog({ visit, userId, onClose }: { visit: any | null; userId: string; onClose: () => void }) {
     const { mutate } = useSWRConfig();
     const { toast } = useToast();
+    
+    // 1. جلب الملفات والصور من S3 باستخدام SWR عند وجود visit
+    const { data: files } = useSWR(
+        visit ? `/api/get-from-s3/${visit.visit_id}` : null,
+        fetcher
+    );
     
     const [acting, setActing] = useState(false);
     const [scheduling, setScheduling] = useState(false);
@@ -825,7 +831,16 @@ function VisitDetailDialog({ visit, userId, onClose }: { visit: VisitRequest | n
         }
     }
 
+    // دالة مساعدة لتنسيق التاريخ إذا لم تكن موجودة لديك مسبقاً
+    const formatDate = (dateString: string) => {
+        if (!dateString) return "";
+        return new Date(dateString).toLocaleDateString("ar-SA");
+    };
+
     if (!visit) return null;
+
+    // تحديد مسار الرخصة النهائي (إما من S3 أو المسار المباشر القديم)
+    const activeLicenseUrl = files?.licenseUrl || visit.license_file;
 
     return (
         <Dialog open={!!visit} onOpenChange={(open) => {
@@ -834,113 +849,162 @@ function VisitDetailDialog({ visit, userId, onClose }: { visit: VisitRequest | n
                 onClose();
             }
         }}>
-            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto" dir="rtl">
+            <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto" dir="rtl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-[#1B4332]">
                         <Eye className="h-5 w-5" /> تفاصيل طلب الزيارة
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="grid grid-cols-1 gap-4 py-4">
+                <div className="flex flex-col gap-5 py-4">
                     
-                    {/* هذا الخيار أفضل لتجربة المستخدم */}
-<div className="bg-[#f0f7f4] p-4 rounded-xl border border-[#B7E4C7]">
-    <p className="text-xs font-bold text-[#1B4332] mb-2 flex items-center gap-1.5">
-        <CalendarDays className="h-4 w-4" /> موعد الزيارة الميدانية
-    </p>
-    
-    {visit.visit_date ? (
-        <p className="text-sm font-bold text-emerald-800">
-            تم التحديد: {new Date(visit.visit_date).toISOString().split("T")[0]}
-        </p>
-    ) : visit.status === "قيد المراجعة" ? (
-        <div className="flex gap-2 items-center mt-2">
-            <Input 
-                type="date" 
-                className="bg-white"
-                value={selectedDate} 
-                onChange={(e) => setSelectedDate(e.target.value)} 
-            />
-            <Button 
-                size="sm" 
-                className="bg-[#1B4332] hover:bg-[#2D6A4F]"
-                disabled={!selectedDate || scheduling}
-                onClick={handleScheduleDate}
-            >
-                {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : "إرسال الدعوات"}
-            </Button>
-        </div>
-    ) : (
-        <p className="text-sm text-muted-foreground italic">
-            لا يمكن تحديد موعد (الطلب ليس قيد المراجعة)
-        </p>
-    )}
-</div>
-
-                    <InfoItem label="اسم النادي" value={visit.club_name} />
-                    <InfoItem label="تاريخ التقديم" value={formatDate(visit.created_at)} />
-                    <InfoItem label="الحالة"><StatusBadge status={visit.status} /></InfoItem>
-                </div>
-
-                {/* --- قسم الإجراءات --- */}
-                {visit.status === "قيد المراجعة" && (
-                    <div className="pt-4 border-t border-border mt-2">
-                        {!showRejectInput && !showApproveInput ? (
-                            <div className="flex items-center gap-3">
-                                <Button onClick={() => setShowApproveInput(true)} className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700">
-                                    <CheckCircle2 className="h-4 w-4" /> قبول الطلب
+                    {/* قسم تحديد وعرض الموعد */}
+                    <div className="bg-[#f0f7f4] p-4 rounded-xl border border-[#B7E4C7]">
+                        <p className="text-xs font-bold text-[#1B4332] mb-2 flex items-center gap-1.5">
+                            <CalendarDays className="h-4 w-4" /> موعد الزيارة الميدانية
+                        </p>
+                        
+                        {visit.visit_date ? (
+                            <p className="text-sm font-bold text-emerald-800">
+                                تم التحديد: {new Date(visit.visit_date).toISOString().split("T")[0]}
+                            </p>
+                        ) : visit.status === "قيد المراجعة" ? (
+                            <div className="flex gap-2 items-center mt-2">
+                                <Input 
+                                    type="date" 
+                                    className="bg-white"
+                                    value={selectedDate} 
+                                    onChange={(e) => setSelectedDate(e.target.value)} 
+                                />
+                                <Button 
+                                    size="sm" 
+                                    className="bg-[#1B4332] hover:bg-[#2D6A4F]"
+                                    disabled={!selectedDate || scheduling}
+                                    onClick={handleScheduleDate}
+                                >
+                                    {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : "إرسال الدعوات"}
                                 </Button>
-                                <Button variant="outline" onClick={() => setShowRejectInput(true)} className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50">
-                                    <XCircle className="h-4 w-4" /> رفض الطلب
-                                </Button>
-                            </div>
-                        ) : showApproveInput ? (
-                            <div className="space-y-3 p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-emerald-800">تحديد التصنيف للنادي *</label>
-                                    {/* تأكد من إضافة إستيرادات Select في أعلى الملف إذا لم تكن موجودة */}
-                                    <select 
-                                        className="w-full p-2 text-sm rounded-md border border-emerald-200 outline-none"
-                                        value={selectedCategory} 
-                                        onChange={(e) => setSelectedCategory(e.target.value)}
-                                    >
-                                        <option value="" disabled>اختر التصنيف</option>
-                                        <option value="A">تصنيف A</option>
-                                        <option value="B">تصنيف B</option>
-                                        <option value="C">تصنيف C</option>
-                                        <option value="D">تصنيف D</option>
-                                    </select>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Button className="flex-1 bg-emerald-700" onClick={() => handleAction("approve")} disabled={acting || !selectedCategory}>
-                                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "اعتماد وتحديث"}
-                                    </Button>
-                                    <Button variant="ghost" onClick={resetStates} disabled={acting}>إلغاء</Button>
-                                </div>
                             </div>
                         ) : (
-                            <div className="space-y-3">
-                                <textarea
-                                    className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200"
-                                    placeholder="اكتب سبب الرفض هنا..."
-                                    value={rejectReason}
-                                    onChange={(e) => setRejectReason(e.target.value)}
-                                />
-                                <div className="flex items-center gap-2">
-                                    <Button variant="destructive" className="flex-1" onClick={() => handleAction("reject")} disabled={acting || !rejectReason.trim()}>
-                                        {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض"}
-                                    </Button>
-                                    <Button variant="ghost" onClick={resetStates} disabled={acting}>إلغاء</Button>
-                                </div>
-                            </div>
+                            <p className="text-sm text-muted-foreground italic">
+                                لا يمكن تحديد موعد (الطلب ليس قيد المراجعة)
+                            </p>
                         )}
                     </div>
-                )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <InfoItem label="اسم النادي" value={visit.club_name} />
+                        <InfoItem label="تاريخ التقديم" value={formatDate(visit.created_at)} />
+                        <InfoItem label="انتهاء الرخصة" value={visit.license_end_date ? formatDate(visit.license_end_date) : "غير متوفر"} />
+                        <InfoItem label="الحالة"><StatusBadge status={visit.status} /></InfoItem>
+                    </div>
+
+                    {/* 2. قسم عرض صورة الرخصة من S3 أو من الرابط المباشر */}
+                    {activeLicenseUrl && (
+                        <div className="pt-4 border-t border-border mt-2 space-y-3">
+                            <p className="text-xs font-bold text-[#1B4332] flex items-center gap-1.5">
+                                <FileText className="h-4 w-4" /> رخصة نافس
+                            </p>
+                            
+                           
+                           
+
+                            <a 
+                                href={activeLicenseUrl} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="flex items-center justify-center gap-2 p-3 rounded-lg bg-[#1B4332] text-white text-sm font-bold shadow-sm hover:bg-[#2D6A4F] transition-colors w-full"
+                            >
+                                <ExternalLink className="h-4 w-4" /> فتح الملف الكامل
+                            </a>
+                        </div>
+                    )}
+
+                    {/* 3. قسم صور الزيارة الميدانية (من S3) */}
+                    {files?.clubUrls && files.clubUrls.length > 0 && (
+                        <div className="pt-4 border-t border-border mt-2">
+                            <p className="text-sm font-bold text-[#1B4332] mb-3 flex items-center gap-1.5">
+                                <ImageIcon className="h-4 w-4" />
+                                صور الزيارة الميدانية ({files.clubUrls.length})
+                            </p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                {files.clubUrls.map((url: string, i: number) => (
+                                    <a
+                                        key={i}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block rounded-xl overflow-hidden border border-border hover:border-[#40916C] hover:opacity-90 transition-all shadow-sm"
+                                    >
+                                        <img
+                                            src={url}
+                                            alt={`صورة الزيارة ${i + 1}`}
+                                            className="w-full h-32 object-cover"
+                                        />
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- قسم الإجراءات --- */}
+                    {visit.status === "قيد المراجعة" && (
+                        <div className="pt-4 border-t border-border mt-2">
+                            {!showRejectInput && !showApproveInput ? (
+                                <div className="flex items-center gap-3">
+                                    <Button onClick={() => setShowApproveInput(true)} className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                                        <CheckCircle2 className="h-4 w-4" /> قبول الطلب
+                                    </Button>
+                                    <Button variant="outline" onClick={() => setShowRejectInput(true)} className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50">
+                                        <XCircle className="h-4 w-4" /> رفض الطلب
+                                    </Button>
+                                </div>
+                            ) : showApproveInput ? (
+                                <div className="space-y-3 p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-emerald-800">تحديد التصنيف للنادي *</label>
+                                        <select 
+                                            className="w-full p-2 text-sm rounded-md border border-emerald-200 outline-none bg-white"
+                                            value={selectedCategory} 
+                                            onChange={(e) => setSelectedCategory(e.target.value)}
+                                        >
+                                            <option value="" disabled>اختر التصنيف</option>
+                                            <option value="A">تصنيف A</option>
+                                            <option value="B">تصنيف B</option>
+                                            <option value="C">تصنيف C</option>
+                                            <option value="D">تصنيف D</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Button className="flex-1 bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => handleAction("approve")} disabled={acting || !selectedCategory}>
+                                            {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "اعتماد وتحديث"}
+                                        </Button>
+                                        <Button variant="ghost" onClick={resetStates} disabled={acting}>إلغاء</Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <textarea
+                                        className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200 focus:ring-1 focus:ring-red-500 outline-none"
+                                        placeholder="اكتب سبب الرفض هنا..."
+                                        value={rejectReason}
+                                        onChange={(e) => setRejectReason(e.target.value)}
+                                    />
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="destructive" className="flex-1" onClick={() => handleAction("reject")} disabled={acting || !rejectReason.trim()}>
+                                            {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "تأكيد الرفض"}
+                                        </Button>
+                                        <Button variant="ghost" onClick={resetStates} disabled={acting}>إلغاء</Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </DialogContent>
         </Dialog>
     );
 }
-
 function LeaveDetailDialog({ leave, userId, onClose }: { leave: LeaveRequest | null; userId: string; onClose: () => void }) {
     const { mutate } = useSWRConfig();
     const { toast } = useToast();
