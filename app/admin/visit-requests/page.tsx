@@ -131,7 +131,7 @@ export default function VisitRequestsPage() {
   );
 }
 
-export function VisitDetailModal({
+function VisitDetailModal({
   visitId,
   open,
   onOpenChange,

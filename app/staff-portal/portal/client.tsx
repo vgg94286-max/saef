@@ -749,7 +749,7 @@ function MyCommitteesSection({ userId }: { userId: string }) {
 
 /* ========== Dialog Components ========== */
 
-export function VisitDetailDialog({ visit, userId, onClose }: { visit: any | null; userId: string; onClose: () => void }) {
+function VisitDetailDialog({ visit, userId, onClose }: { visit: any | null; userId: string; onClose: () => void }) {
     const { mutate } = useSWRConfig();
     const { toast } = useToast();
     
