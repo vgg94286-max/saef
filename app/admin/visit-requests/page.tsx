@@ -281,7 +281,62 @@ function VisitDetailModal({
                 <p className="text-xs text-muted-foreground mb-1">الحالة</p>
                 <StatusBadge status={data.status} />
               </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">تاريخ الطلب</p>
+                <p className="text-sm">{new Date(data.created_at).toISOString().split("T")[0]}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">انتهاء الرخصة</p>
+                <p className="text-sm">
+                  {data.license_end_date
+                    ? new Date(data.license_end_date).toISOString().split("T")[0]
+                    : "غير متوفر"}
+                </p>
+              </div>
             </div>
+
+            {/* License Section - تم إعادتها */}
+            {files?.licenseUrl && (
+              <div className="pt-2">
+                <p className="text-xs text-muted-foreground mb-2">رخصة نافس</p>
+                <a
+                  href={files.licenseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-primary hover:underline font-medium"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  عرض رخصة نافس
+                </a>
+              </div>
+            )}
+
+            {/* Images Section - تم إعادتها */}
+            {files?.clubUrls && files.clubUrls.length > 0 && (
+              <div className="pt-2">
+                <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <ImageIcon className="h-3.5 w-3.5" />
+                  صور الزيارة ({files.clubUrls.length})
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {files.clubUrls.map((url, i) => (
+                    <a
+                      key={i}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block rounded-lg overflow-hidden border border-border hover:border-primary transition-colors"
+                    >
+                      <img
+                        src={url}
+                        alt="صورة الزيارة"
+                        className="w-full h-36 object-cover"
+                      />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Actions Section */}
             {data.status === "قيد المراجعة" && (
@@ -291,12 +346,12 @@ function VisitDetailModal({
                     <Button onClick={() => setShowApproveInput(true)} className="gap-1.5 flex-1 bg-emerald-600 hover:bg-emerald-700">
                       <CheckCircle2 className="h-4 w-4" /> قبول الطلب
                     </Button>
-                    <Button variant="outline" onClick={() => setShowRejectInput(true)} className="gap-1.5 flex-1 border-red-200 text-red-600">
+                    <Button variant="outline" onClick={() => setShowRejectInput(true)} className="gap-1.5 flex-1 border-red-200 text-red-600 hover:bg-red-50">
                       <XCircle className="h-4 w-4" /> رفض الطلب
                     </Button>
                   </div>
                 ) : showApproveInput ? (
-                  <div className="space-y-3 p-4 bg-emerald-50 rounded-lg border border-emerald-100">
+                  <div className="space-y-3 p-4 bg-emerald-50 rounded-lg border border-emerald-100 animate-in fade-in slide-in-from-bottom-2">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-emerald-800">تحديد تصنيف النادي المعتمد *</label>
                       <Select onValueChange={setSelectedCategory}>
@@ -312,18 +367,20 @@ function VisitDetailModal({
                       </Select>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button className="flex-1 bg-emerald-700" onClick={() => handleAction("approve")} disabled={acting || !selectedCategory}>
+                      <Button className="flex-1 bg-emerald-700 hover:bg-emerald-800" onClick={() => handleAction("approve")} disabled={acting || !selectedCategory}>
                         {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : "اعتماد النادي النهائي"}
                       </Button>
                       <Button variant="ghost" onClick={resetStates} disabled={acting}>إلغاء</Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-3 p-4 bg-red-50 rounded-lg border border-red-100 animate-in fade-in slide-in-from-bottom-2">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-red-600">سبب الرفض *</label>
                       <textarea
-                        className="w-full p-2 text-sm rounded-md border border-red-200"
+                        required
+                        className="w-full min-h-[80px] p-2 text-sm rounded-md border border-red-200 focus:ring-1 focus:ring-red-500 outline-none bg-white"
+                        placeholder="اكتب سبب الرفض هنا... (سيظهر للنادي)"
                         value={rejectReason}
                         onChange={(e) => setRejectReason(e.target.value)}
                       />
