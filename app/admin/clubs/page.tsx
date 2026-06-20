@@ -50,60 +50,7 @@ export default function AdminClubsPage() {
         license_end_date: ""
     });
 
-    // 1. المزامنة التلقائية (مرة واحدة كل 24 ساعة)
-    useEffect(() => {
-        const performSync = async () => {
-            setIsSyncing(true);
-            try {
-                const res = await fetch("/api/admin/clubs/sync", { method: "POST" });
-                if (res.ok) {
-                    mutate("/api/admin/clubs");
-                    // حفظ وقت المزامنة الحالي في المتصفح
-                    localStorage.setItem("last_club_sync", new Date().toISOString());
-                }
-            } catch (error) {
-                console.error("Auto-sync failed:", error);
-            } finally {
-                setIsSyncing(false);
-            }
-        };
-
-        const checkAndSync = () => {
-            const lastSync = localStorage.getItem("last_club_sync");
-            
-            // إذا لم تكن هناك مزامنة سابقة أبداً، قم بالمزامنة
-            if (!lastSync) {
-                performSync();
-                return;
-            }
-
-            const lastSyncDate = new Date(lastSync);
-            const now = new Date();
-            const timeDiff = now.getTime() - lastSyncDate.getTime();
-            const hoursDiff = timeDiff / (1000 * 60 * 60);
-
-            // إذا مر 24 ساعة (أو أكثر) على آخر مزامنة
-            if (hoursDiff >= 24) {
-                performSync();
-            }
-        };
-
-        // التحقق فوراً عند فتح الصفحة
-        checkAndSync();
-
-        // فحص دوري كل ساعة (في حال ترك المسؤول الصفحة مفتوحة لفترة طويلة)
-        const intervalId = setInterval(checkAndSync, 60 * 60 * 1000);
-
-        return () => clearInterval(intervalId);
-    }, []);
-
-    // جلب المدن من ملف JSON
-    useEffect(() => {
-        fetch("/data/cities.json")
-            .then(res => res.json())
-            .then(data => setCities(data))
-            .catch(err => console.error("Error loading cities", err));
-    }, []);
+    
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
