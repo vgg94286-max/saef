@@ -432,7 +432,7 @@ export function NewLeaveRequestForm({ defaultNationalId, defaultEmail }: { defau
               <Label>البريد الإلكتروني</Label>
               <Input 
                 {...register("email")} 
-                className={autoFilled.email ? "bg-slate-100 text-slate-500 cursor-not-allowed text-right" : "bg-slate-50 text-right"}
+                className={autoFilled.email ? "bg-slate-100 text-slate-500 cursor-not-allowed text-right" : ""}
                 readOnly={autoFilled.email}
               />
               {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}

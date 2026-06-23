@@ -260,7 +260,7 @@ export function NewLeaveRequestForm() {
                   id="email" 
                   placeholder="example@domain.com" 
                   {...register("email")} 
-                  className={`pr-10 text-left placeholder:text-right ${(autoFilled.email) ? "bg-slate-100 text-slate-500 cursor-not-allowed" : "bg-slate-50"}`} 
+                  className={`pr-10 text-left placeholder:text-right ${(autoFilled.email) ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}`} 
                   dir="ltr" 
                   readOnly={autoFilled.email} 
                 />
