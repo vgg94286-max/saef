@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { Upload } from "lucide-react"
+import { useUploadThing } from "@/lib/uploadthing"
 import { z } from "zod"
 import {
   Loader2,
@@ -33,6 +35,15 @@ import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from 'next/navigation'
+
+const MAX_SIZE = 30 * 1024 * 1024 // 30MB
+const ALLOWED_LICENSE_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/png",
+]
 
 
 const prizeSchema = z.object({
@@ -65,6 +76,10 @@ const championshipSchema = z.object({
   agreed_on_terms: z.boolean(),
   judges: z.array(judgeSchema).min(1, "يجب إضافة حكم واحد على الأقل"),
   rounds: z.array(roundSchema).min(1, "يجب إضافة شوط واحد على الأقل"),
+  agreementFile: z
+    .instanceof(File, { message: "يرجى رفع إقرار البطولة الخاصة" })
+    .refine(file => file.size <= MAX_SIZE, "الحد الأقصى 30 ميجابايت")
+    .refine(file => ALLOWED_LICENSE_TYPES.includes(file.type), "نوع الملف غير مدعوم"),
 }).refine((data) => data.end_date >= data.date, {
   message: "تاريخ الانتهاء لا يمكن أن يكون قبل تاريخ البدء",
   path: ["end_date"],
@@ -88,6 +103,11 @@ export function ChampionshipForm({ clubId }: { clubId: string }) {
   const [endDate, setEndDate] = useState<Date | undefined>()
   const [isStartDateOpen, setIsStartDateOpen] = useState(false)
   const [isEndDateOpen, setIsEndDateOpen] = useState(false)
+
+  const [agreementFile, setAgreementFile] = useState<File | null>(null)
+  
+  
+  const { startUpload } = useUploadThing("privateChampAgreementSubmission")
 
   const {
     register,
@@ -135,17 +155,38 @@ export function ChampionshipForm({ clubId }: { clubId: string }) {
 
   /* ---------- Submit ---------- */
   const onSubmit = async (data: ChampionshipFormData) => {
-
-
     setIsLoading(true)
     setSuccessMessage("")
     setErrorMessage("")
 
     try {
+      // 1. Upload the agreement file first
+      let agreementUrl = "";
+      if (data.agreementFile) {
+        const uploadRes = await startUpload([data.agreementFile], { clubId })
+        if (!uploadRes || !uploadRes[0]) {
+          throw new Error("فشل رفع إقرار البطولة")
+        }
+        agreementUrl = uploadRes[0].ufsUrl // Using ufsUrl as per your uploadthing setup
+      }
+
+      // 2. Prepare payload (remove the File object, add the URL)
+      const payload = {
+        club_id: clubId,
+        date: data.date.toISOString(),
+        end_date: data.end_date.toISOString(),
+        ambulance: data.ambulance,
+        agreed_on_terms: data.agreed_on_terms,
+        judges: data.judges,
+        rounds: data.rounds,
+        private_champ_agreement: agreementUrl // Send the uploaded URL
+      }
+
+      // 3. Send to database
       const res = await fetch("/api/championships", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, club_id: clubId }),
+        body: JSON.stringify(payload),
       })
 
       if (!res.ok) {
@@ -156,9 +197,10 @@ export function ChampionshipForm({ clubId }: { clubId: string }) {
       toast({
         title: "تم إنشاء البطولة بنجاح",
         description: "سيتم مراجعة بيانات البطولة والموافقة عليها في أقرب وقت ممكن.",
-
       })
+      
       reset()
+      setAgreementFile(null) // Reset the file state
       setExpandedRounds({ 0: true })
       router.push("/club-dashboard")
 
@@ -434,6 +476,42 @@ export function ChampionshipForm({ clubId }: { clubId: string }) {
             <Ambulance className="h-4 w-4 text-muted-foreground" />
             هل سيتم توفير سيارة إسعاف ؟
           </Label>
+        </div>
+      </Card>
+
+      
+
+      {/* NEW: Agreement File Upload Card */}
+      <Card className="border-border bg-card shadow-sm p-6">
+        <div className="space-y-2">
+          <Label>إقرار البطولة الخاصة <span className="text-destructive">*</span></Label>
+          <div onClick={() => document.getElementById("agreementUpload")?.click()} className="relative cursor-pointer rounded-lg border border-dashed border-border p-4 hover:bg-muted transition">
+            <Upload className="absolute right-4 top-4 h-5 w-5 text-muted-foreground" />
+            <input
+              id="agreementUpload"
+              type="file"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                setAgreementFile(file)
+                setValue("agreementFile", file, { shouldValidate: true })
+              }}
+            />
+            {agreementFile ? (
+              <div className="pr-10 text-sm">
+                <p className="font-medium">{agreementFile.name}</p>
+                <button type="button" className="mt-2 text-destructive text-xs" onClick={(e) => { e.stopPropagation(); setAgreementFile(null); setValue("agreementFile", undefined as any) }}>إزالة الملف</button>
+              </div>
+            ) : (
+              <div className="pr-10 text-sm text-muted-foreground">
+                اضغط لرفع إقرار البطولة الخاصة
+                <p className="text-xs mt-1">الصيغ المسموحة: PDF, DOCX, JPG, PNG — الحد الأقصى 30 ميجابايت</p>
+              </div>
+            )}
+          </div>
+          {errors.agreementFile && <p className="text-sm text-destructive">{errors.agreementFile.message as string}</p>}
         </div>
       </Card>
 

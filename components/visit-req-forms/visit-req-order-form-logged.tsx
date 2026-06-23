@@ -210,7 +210,7 @@ export function VisitReqOrderFormlogged({ defaultClubName, defaultEmail }: Visit
           {/* Club Name */}
           <div className="space-y-2">
             <Label htmlFor="clubName">اسم النادي</Label>
-            <Input id="clubName" placeholder="أدخل اسم النادي" {...register("clubName")} defaultValue={defaultClubName} readOnly />
+            <Input id="clubName" className={`${defaultClubName ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}`} placeholder="أدخل اسم النادي" {...register("clubName")} defaultValue={defaultClubName} readOnly />
             {errors.clubName && <p className="text-sm text-destructive">{errors.clubName.message}</p>}
           </div>
 
@@ -223,7 +223,7 @@ export function VisitReqOrderFormlogged({ defaultClubName, defaultEmail }: Visit
                 id="email"
                 type="email"
                 placeholder="example@domain.com"
-                className="pr-10 text-left placeholder:text-right"
+                className={`pr-10 text-left placeholder:text-right ${defaultEmail ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}`}
                 dir="ltr"
                 defaultValue={defaultEmail}
                 readOnly

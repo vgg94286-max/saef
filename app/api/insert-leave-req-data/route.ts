@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
         [user_id]
       );
 
+
       // 3. إدخال بيانات طلب التفرغ بالحقول الجديدة
       // ملاحظة: تأكد أن أسماء الأعمدة في الجدول (Database) تطابق هذه الأسماء
       const result = await tx.query(
@@ -84,7 +85,31 @@ export async function POST(req: NextRequest) {
           employment_student_num, // إذا كان نصاً في القاعدة اتركه كما هو، إذا كان رقماً استخدم parseInt
           user_id,
         ]
+
+        
       );
+
+      await tx.query(
+        `INSERT INTO public.all_req (
+          full_name,
+          national_id,
+          email,
+          
+        )
+        VALUES (
+          $1, $2, $3
+        )`,
+        [
+          full_name,
+          national_id,
+          email,
+        ]
+
+      );
+      
+      
+
+      
 
       return result.rows;
     });

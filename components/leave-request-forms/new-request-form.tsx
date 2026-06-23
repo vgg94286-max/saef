@@ -45,13 +45,15 @@ export function NewLeaveRequestForm({ defaultNationalId, defaultEmail }: { defau
 
   const [autoFilled, setAutoFilled] = useState({
     name: false,
+    email: false,
+  
     nationalId: false,
     phone: false
   });
 
   // دالة مساعدة لفك القفل عن الحقول في حال حدوث خطأ أو تغيير الرقم
   const unlockFields = () => {
-    setAutoFilled({ name: false, nationalId: false, phone: false });
+    setAutoFilled({ name: false, nationalId: false, phone: false, email: false });
   };
 
   // Data for dropdowns
@@ -121,13 +123,17 @@ export function NewLeaveRequestForm({ defaultNationalId, defaultEmail }: { defau
               setValue("phone", riderData.mobile, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
               lockedState.phone = true;
             }
+             if (riderData?.email) {
+              setValue("email", riderData.email, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+              lockedState.email = true;
+            }
 
 
             setAutoFilled(lockedState);
 
             toast({
               title: "تم التحقق بنجاح",
-              description: "تم سحب بيانات الفارس المعتمدة تلقائياً.",
+              
               variant: "default",
             });
           }
@@ -424,7 +430,11 @@ export function NewLeaveRequestForm({ defaultNationalId, defaultEmail }: { defau
             </div>
             <div className="space-y-2">
               <Label>البريد الإلكتروني</Label>
-              <Input {...register("email")} className="bg-slate-50" />
+              <Input 
+                {...register("email")} 
+                className={autoFilled.email ? "bg-slate-100 text-slate-500 cursor-not-allowed text-right" : "bg-slate-50 text-right"}
+                readOnly={autoFilled.email}
+              />
               {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
           </div>

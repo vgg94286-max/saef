@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       return { clubId, visitId };
     });
 
-    // بقية الكود (JWT وإرسال الكوكيز) تظل كما هي...
+    
     const { clubId, visitId } = result;
     const payload: ClubJWTPayload = { user_id: userId, role: "club", club_id: clubId, club_name: clubName, email };
     const token = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: "7d" });

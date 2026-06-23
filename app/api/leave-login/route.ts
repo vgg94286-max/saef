@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     }
 
     const result = await sql`
-      SELECT * FROM public.get_verified_leave_by_email(${email})
+      SELECT * FROM public.all_req WHERE email = ${email}
     `;
 
     if (result.length === 0) {

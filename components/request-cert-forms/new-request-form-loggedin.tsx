@@ -38,7 +38,7 @@ export function NewLeaveRequestFormLogged({ defaultNationalId, defaultEmail }: L
   // States الخاصة برقم الفارس
   const [isCheckingRider, setIsCheckingRider] = useState(false)
   const [riderError, setRiderError] = useState("")
-  const [autoFilled, setAutoFilled] = useState({ name: false, nationalId: false })
+  const [autoFilled, setAutoFilled] = useState({ name: false, nationalId: false,email: false })
 
   const { toast } = useToast()
   const role = "requester"
@@ -52,7 +52,7 @@ export function NewLeaveRequestFormLogged({ defaultNationalId, defaultEmail }: L
 
   // دالة مساعدة لفك القفل عن الحقول
   const unlockFields = () => {
-    setAutoFilled({ name: false, nationalId: false })
+    setAutoFilled({ name: false, nationalId: false, email: false })
   }
 
   // التحقق من رقم الفارس وجلب البيانات
@@ -78,7 +78,7 @@ export function NewLeaveRequestFormLogged({ defaultNationalId, defaultEmail }: L
             const rawData = await checkRes.json()
             const riderData = Array.isArray(rawData) ? rawData[0] : rawData.data || rawData
 
-            const lockedState = { name: false, nationalId: false }
+            const lockedState = { name: false, nationalId: false, email: false }
 
             if (riderData?.arabicFullName) {
               setValue("name", riderData.arabicFullName, { shouldValidate: true, shouldDirty: true, shouldTouch: true })
@@ -88,12 +88,16 @@ export function NewLeaveRequestFormLogged({ defaultNationalId, defaultEmail }: L
               setValue("nationalId", riderData.nationalId, { shouldValidate: true, shouldDirty: true, shouldTouch: true })
               lockedState.nationalId = true
             }
+            if (riderData?.email) {
+              setValue("email", riderData.email, { shouldValidate: true, shouldDirty: true, shouldTouch: true })
+              lockedState.email = true
+            }
 
             setAutoFilled(lockedState)
 
             toast({
               title: "تم التحقق بنجاح",
-              description: "تم سحب بيانات الفارس المعتمدة تلقائياً.",
+             
               variant: "default",
             })
           }
@@ -147,6 +151,15 @@ export function NewLeaveRequestFormLogged({ defaultNationalId, defaultEmail }: L
         toast({
           title: "البريد الالكتروني مسجل مسبقاً",
           description: "يرجى تسجيل الدخول لمتابعة طلباتك السابقة أو إنشاء طلب جديد",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      if (res.status === 404) {
+        toast({
+          title: "البريد الالكتروني غير مسجل",
+          description: "يرجى التحقق من البريد الالكتروني أو إنشاء حساب جديد",
           variant: "destructive",
         });
         setIsLoading(false);
@@ -275,14 +288,21 @@ export function NewLeaveRequestFormLogged({ defaultNationalId, defaultEmail }: L
             </div>
 
            {/* Email */}
-                       <div className="space-y-2 md:col-span-2">
-                         <Label htmlFor="email">البريد الإلكتروني</Label>
-                         <div className="relative">
-                           <Mail className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                           <Input  id="email" placeholder="example@domain.com" {...register("email")} className="pr-10 text-left placeholder:text-right" dir="ltr" defaultValue={defaultEmail} readOnly />
-                         </div>
-                         {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
-                       </div>
+                      <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="email">البريد الإلكتروني</Label>
+              <div className="relative">
+                <Mail className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input 
+                  id="email" 
+                  placeholder="example@domain.com" 
+                  {...register("email")} 
+                  className={`pr-10 text-left placeholder:text-right ${(autoFilled.email) ? "bg-slate-100 text-slate-500 cursor-not-allowed" : "bg-slate-50"}`} 
+                  dir="ltr" 
+                  readOnly={autoFilled.email} 
+                />
+              </div>
+              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+            </div>
 
             {/* Championship Name */}
             <div className="space-y-2 md:col-span-2">

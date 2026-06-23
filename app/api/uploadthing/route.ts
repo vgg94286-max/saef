@@ -136,6 +136,50 @@ const uploadRouter = {
       return { fileUrl: file.ufsUrl, metadata };
     }),
 
+    privateChampAgreementSubmission: f({
+    blob: { maxFileCount: 1, maxFileSize: "32MB" },
+  })
+    .input(
+      z.object({
+        clubId: z.string(),
+      })
+    )
+    .middleware(async ({ input, files }) => {
+      const ALLOWED_AGREEMENT_TYPES = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/jpeg",
+        "image/png",
+      ];
+
+      if (files.length === 0) {
+        throw new Error("No file uploaded");
+      }
+
+      const file = files[0];
+
+      if (!ALLOWED_AGREEMENT_TYPES.includes(file.type)) {
+        throw new Error("نوع الملف المرفوع غير مدعوم للإقرار");
+      }
+
+      const random = crypto.randomBytes(8).toString("hex");
+
+      return {
+        ...input,
+        file: {
+          ...file,
+          name: `championships/${input.clubId}/agreement-${random}-${file.name}`,
+        },
+      };
+    })
+    .onUploadComplete(({ metadata, file }) => {
+      return { 
+        fileUrl: file.ufsUrl, 
+        clubId: metadata.clubId 
+      };
+    }),
+
 };
 
 export type OurFileRouter = typeof uploadRouter;

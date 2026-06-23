@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   
     return NextResponse.json(
       { error: "البريد الإلكتروني غير مسجل " },
-      { status: 400 }
+      { status: 404 }
     )
 }
     

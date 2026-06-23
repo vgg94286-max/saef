@@ -65,6 +65,23 @@ export async function POST(req: NextRequest) {
           user_id,
         ]
       );
+      await tx.query(
+        `INSERT INTO public.all_req (
+          full_name,
+          national_id,
+          email,
+          
+        )
+        VALUES (
+          $1, $2, $3
+        )`,
+        [
+          full_name,
+          national_id,
+          email,
+        ]
+
+      );
 
       return result.rows;
     });

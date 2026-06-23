@@ -36,7 +36,7 @@ export function NewLeaveRequestForm() {
   // States الخاصة برقم الفارس
   const [isCheckingRider, setIsCheckingRider] = useState(false)
   const [riderError, setRiderError] = useState("")
-  const [autoFilled, setAutoFilled] = useState({ name: false, nationalId: false })
+  const [autoFilled, setAutoFilled] = useState({ name: false, nationalId: false , email: false})
 
   const { toast } = useToast()
   const role = "requester"
@@ -50,7 +50,7 @@ export function NewLeaveRequestForm() {
 
   // دالة مساعدة لفك القفل عن الحقول
   const unlockFields = () => {
-    setAutoFilled({ name: false, nationalId: false })
+    setAutoFilled({ name: false, nationalId: false, email: false })
   }
 
   // التحقق من رقم الفارس وجلب البيانات
@@ -76,7 +76,7 @@ export function NewLeaveRequestForm() {
             const rawData = await checkRes.json()
             const riderData = Array.isArray(rawData) ? rawData[0] : rawData.data || rawData
 
-            const lockedState = { name: false, nationalId: false }
+            const lockedState = { name: false, nationalId: false, email: false }
 
             if (riderData?.arabicFullName) {
               setValue("name", riderData.arabicFullName, { shouldValidate: true, shouldDirty: true, shouldTouch: true })
@@ -85,6 +85,10 @@ export function NewLeaveRequestForm() {
             if (riderData?.nationalId) {
               setValue("nationalId", riderData.nationalId, { shouldValidate: true, shouldDirty: true, shouldTouch: true })
               lockedState.nationalId = true
+            }
+            if (riderData?.email) {
+              setValue("email", riderData.email, { shouldValidate: true, shouldDirty: true, shouldTouch: true })
+              lockedState.email = true
             }
 
             setAutoFilled(lockedState)
@@ -256,8 +260,9 @@ export function NewLeaveRequestForm() {
                   id="email" 
                   placeholder="example@domain.com" 
                   {...register("email")} 
-                  className="pr-10 text-left placeholder:text-right" 
-                  dir="ltr"   
+                  className={`pr-10 text-left placeholder:text-right ${(autoFilled.email) ? "bg-slate-100 text-slate-500 cursor-not-allowed" : "bg-slate-50"}`} 
+                  dir="ltr" 
+                  readOnly={autoFilled.email} 
                 />
               </div>
               {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}

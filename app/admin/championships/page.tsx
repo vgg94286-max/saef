@@ -20,7 +20,7 @@ import {
 import { StatusBadge } from "@/components/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Trophy, FileText, CheckCircle2, XCircle, Ambulance, Award, Users, Loader2 } from "lucide-react";
+import { Trophy,ExternalLink, FileText, CheckCircle2, XCircle, Ambulance, Award, Users, Loader2 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -42,6 +42,7 @@ type ChampDetail = Championship & {
   judges: Judge[];
   rounds: Round[];
   total_prizes: number;
+  private_champ_agreement: string | null;
 };
 
 export default function ChampionshipsPage() {
@@ -217,6 +218,21 @@ function ChampDetailModal({
                 </span>
               </div>
             </div>
+
+            {data.private_champ_agreement && (
+              <div className="bg-muted/40 rounded-xl p-3.5 flex items-center justify-between border border-border animate-in fade-in-50">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-bold text-foreground">إقرار البطولة الخاصة المرفوع</span>
+                </div>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs bg-background shadow-sm border-border hover:bg-secondary" asChild>
+                  <a href={data.private_champ_agreement} target="_blank" rel="noopener noreferrer">
+                    عرض الملف
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </Button>
+              </div>
+            )}
 
             <Separator />
 

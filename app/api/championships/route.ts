@@ -25,6 +25,7 @@ const bodySchema = z.object({
   agreed_on_terms: z.boolean().refine((v) => v, "Must agree to terms"),
   judges: z.array(judgeSchema).min(1),
   rounds: z.array(roundSchema).min(1),
+  private_champ_agreement: z.string().min(1, "رابط الإقرار مطلوب"),
 })
 
 export async function POST(request: Request) {
@@ -36,10 +37,10 @@ export async function POST(request: Request) {
 
       /* championship */
       const championshipRes = await tx.query(
-        `INSERT INTO public.championships (club_id, date, end_date, ambulance, agreed_on_terms)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO public.championships (club_id, date, end_date, ambulance, agreed_on_terms, private_champ_agreement)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING championships_id`,
-        [data.club_id, data.date, data.end_date, data.ambulance, data.agreed_on_terms]
+        [data.club_id, data.date, data.end_date, data.ambulance, data.agreed_on_terms, data.private_champ_agreement]
       )
 
       const champId = championshipRes.rows[0].championships_id

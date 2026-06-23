@@ -61,6 +61,7 @@ type ChampDetail = Championship & {
     judges: Judge[];
     rounds: Round[];
     total_prizes: number;
+    private_champ_agreement: string | null;
 };
 
 type VisitRequest = {
@@ -123,6 +124,7 @@ type Championship = {
     ambulance: boolean;
     created_at: string;
     request_type: "championship";
+    
 };
 
 type RequestsData = {
@@ -1503,6 +1505,21 @@ function ChampDetailDialog({
                                 </span>
                             </InfoItem>
                         </div>
+
+                        {data.private_champ_agreement && (
+                            <div className="bg-[#f0f7f4] rounded-xl p-3.5 flex items-center justify-between border border-[#B7E4C7] animate-in fade-in-50">
+                                <div className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-[#1B4332]" />
+                                    <span className="text-xs font-bold text-[#1B4332]">إقرار البطولة الخاصة المرفوع</span>
+                                </div>
+                                <Button variant="outline" size="sm" className="gap-1.5 text-xs bg-white text-[#1B4332] border-[#B7E4C7] hover:bg-[#e2f0e9]" asChild>
+                                    <a href={data.private_champ_agreement} target="_blank" rel="noopener noreferrer">
+                                        عرض الملف
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                    </a>
+                                </Button>
+                            </div>
+                        )}
 
                         <Separator />
 
