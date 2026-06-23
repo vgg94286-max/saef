@@ -484,7 +484,7 @@ export function ChampionshipForm({ clubId }: { clubId: string }) {
       {/* NEW: Agreement File Upload Card */}
       <Card className="border-border bg-card shadow-sm p-6">
         <div className="space-y-2">
-          <Label>نموذج البطولة الخاصة <span className="text-destructive">*</span></Label>
+          <Label>نموذج البطولات الخاصة <span className="text-destructive">*</span></Label>
           <div onClick={() => document.getElementById("agreementUpload")?.click()} className="relative cursor-pointer rounded-lg border border-dashed border-border p-4 hover:bg-muted transition">
             <Upload className="absolute right-4 top-4 h-5 w-5 text-muted-foreground" />
             <input

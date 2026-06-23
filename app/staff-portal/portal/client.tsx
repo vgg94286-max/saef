@@ -1510,7 +1510,7 @@ function ChampDetailDialog({
                             <div className="bg-[#f0f7f4] rounded-xl p-3.5 flex items-center justify-between border border-[#B7E4C7] animate-in fade-in-50">
                                 <div className="flex items-center gap-2">
                                     <FileText className="h-4 w-4 text-[#1B4332]" />
-                                    <span className="text-xs font-bold text-[#1B4332]">نموذج البطولة الخاصة</span>
+                                    <span className="text-xs font-bold text-[#1B4332]">نموذج البطولات الخاصة</span>
                                 </div>
                                 <Button variant="outline" size="sm" className="gap-1.5 text-xs bg-white text-[#1B4332] border-[#B7E4C7] hover:bg-[#e2f0e9]" asChild>
                                     <a href={data.private_champ_agreement} target="_blank" rel="noopener noreferrer">
