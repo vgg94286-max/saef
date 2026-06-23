@@ -223,7 +223,7 @@ function ChampDetailModal({
               <div className="bg-muted/40 rounded-xl p-3.5 flex items-center justify-between border border-border animate-in fade-in-50">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-bold text-foreground">إقرار البطولة الخاصة المرفوع</span>
+                  <span className="text-xs font-bold text-foreground">نموذج البطولة الخاصة </span>
                 </div>
                 <Button variant="outline" size="sm" className="gap-1.5 text-xs bg-background shadow-sm border-border hover:bg-secondary" asChild>
                   <a href={data.private_champ_agreement} target="_blank" rel="noopener noreferrer">
