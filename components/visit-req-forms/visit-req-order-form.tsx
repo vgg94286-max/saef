@@ -90,7 +90,7 @@ export function VisitReqOrderForm({ defaultClubName, defaultEmail }: VisitReqOrd
   }, [])
 
   const filteredCities = useMemo(() => {
-    const uniqueCityNames = Array.from(new Set(cities.map((c: any) => c.name.ar)))
+    const uniqueCityNames = Array.from(new Set(cities.map((c: any) => c.name.en)))
     if (!searchTerm) return uniqueCityNames.slice(0, 50)
     return uniqueCityNames.filter((name: any) => name.includes(searchTerm)).slice(0, 50)
   }, [searchTerm, cities])

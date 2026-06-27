@@ -36,6 +36,7 @@ type VisitRequest = {
   club_name: string;
   status: string;
   created_at: string;
+  email: string;
   visit_date: string | null; // تم الإضافة
 };
 
@@ -160,6 +161,9 @@ function VisitDetailModal({
   
   const [selectedCategory, setSelectedCategory] = useState("");
   const [showApproveInput, setShowApproveInput] = useState(false);
+  // 1. إضافة متغير للحصول على تاريخ اليوم بصيغة YYYY-MM-DD
+  const today = new Date();
+  const minDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   // دالة تحديد الموعد
   async function handleScheduleDate() {
@@ -253,6 +257,7 @@ function VisitDetailModal({
                     type="date" 
                     className="max-w-[200px]"
                     value={selectedDate} 
+                    min={minDate}
                     onChange={(e) => setSelectedDate(e.target.value)} 
                   />
                   <Button 
@@ -284,6 +289,10 @@ function VisitDetailModal({
               <div>
                 <p className="text-xs text-muted-foreground mb-1">تاريخ الطلب</p>
                 <p className="text-sm">{new Date(data.created_at).toISOString().split("T")[0]}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">الايميل</p>
+                <p className="text-sm">{data.email}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">انتهاء الرخصة</p>

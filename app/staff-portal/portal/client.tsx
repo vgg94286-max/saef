@@ -70,6 +70,7 @@ type VisitRequest = {
     club_name: string;
     status: string;
     created_at: string;
+    email: string;
     license_file: string | null;
     license_end_date: string | null;
     request_type: "visit";
@@ -280,20 +281,20 @@ function SubmitReportModal({
 
                 if (!response.ok) throw new Error("فشل حفظ بيانات التقرير");
 
-                toast({ title: "تم الرفع", description: "تم إرسال التقرير بنجاح" });
+                toast({ title: "تم الرفع", description: "" });
                 mutate(`/api/staff/committees?user_id=${userId}`);
                 onOpenChange(false);
                 setFile(null);
             } catch (err) {
                 toast({ 
                     title: "خطأ", 
-                    description: "حدث خطأ أثناء حفظ التقرير", 
+                    
                     variant: "destructive" 
                 });
             }
         },
         onUploadError: (error) => {
-            toast({ title: "خطأ في الرفع", description: error.message, variant: "destructive" });
+            toast({ title: "خطأ في الرفع", description: "", variant: "destructive" });
         },
     });
 
@@ -485,6 +486,7 @@ function AllRequestsSection({ userId }: { userId: string }) {
                                         {isLoading ? <SkeletonRows cols={5} /> : data?.visit_requests.map((vr) => (
                                             <TableRow key={vr.visit_id} className="hover:bg-[#f8faf9]">
                                                 <TableCell className="font-bold text-[#2D6A4F]">{vr.club_name}</TableCell>
+                                                
                                                 <TableCell className="text-muted-foreground">{formatDate(vr.created_at)}</TableCell>
                                                 <TableCell className="text-muted-foreground">{vr.license_end_date ? formatDate(vr.license_end_date) : "---"}</TableCell>
                                                 <TableCell><StatusBadge status={vr.status} /></TableCell>
@@ -771,6 +773,9 @@ function VisitDetailDialog({ visit, userId, onClose }: { visit: any | null; user
     
     const [selectedCategory, setSelectedCategory] = useState("");
     const [showApproveInput, setShowApproveInput] = useState(false);
+     const today = new Date();
+  const minDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
 
     const resetStates = () => {
         setShowRejectInput(false);
@@ -793,11 +798,11 @@ function VisitDetailDialog({ visit, userId, onClose }: { visit: any | null; user
             const resData = await res.json();
             if (!res.ok) throw new Error(resData.error || "فشل تحديد الموعد");
 
-            toast({ title: "تم بنجاح", description: "تم تحديد الموعد وإرسال الإشعارات للجنة والنادي." });
+            toast({ title: "تم بنجاح" });
             mutate(`/api/staff/requests?user_id=${userId}`);
             onClose(); // نغلق النافذة لكي يتم تحديث البيانات
         } catch (err: any) {
-            toast({ title: "خطأ", description: err.message, variant: "destructive" });
+            toast({ title: "خطأ", description: "", variant: "destructive" });
         } finally {
             setScheduling(false);
         }
@@ -822,12 +827,12 @@ function VisitDetailDialog({ visit, userId, onClose }: { visit: any | null; user
 
             if (!res.ok) throw new Error("فشل تنفيذ الإجراء");
 
-            toast({ title: "تم بنجاح", description: "تم تحديث الحالة" });
+            toast({ title: "تم بنجاح"});
             mutate(`/api/staff/requests?user_id=${userId}`);
             resetStates();
             onClose();
         } catch (error) {
-            toast({ title: "خطأ", description: "حدث خطأ أثناء تنفيذ العملية", variant: "destructive" });
+            toast({ title: "خطأ", variant: "destructive" });
         } finally {
             setActing(false);
         }
@@ -838,7 +843,7 @@ function VisitDetailDialog({ visit, userId, onClose }: { visit: any | null; user
         if (!dateString) return "";
         return new Date(dateString).toLocaleDateString("ar-SA");
     };
-
+   
     if (!visit) return null;
 
     // تحديد مسار الرخصة النهائي (إما من S3 أو المسار المباشر القديم)
@@ -876,6 +881,7 @@ function VisitDetailDialog({ visit, userId, onClose }: { visit: any | null; user
                                     type="date" 
                                     className="bg-white"
                                     value={selectedDate} 
+                                    min={minDate}
                                     onChange={(e) => setSelectedDate(e.target.value)} 
                                 />
                                 <Button 
@@ -899,6 +905,7 @@ function VisitDetailDialog({ visit, userId, onClose }: { visit: any | null; user
                         <InfoItem label="تاريخ التقديم" value={formatDate(visit.created_at)} />
                         <InfoItem label="انتهاء الرخصة" value={visit.license_end_date ? formatDate(visit.license_end_date) : "غير متوفر"} />
                         <InfoItem label="الحالة"><StatusBadge status={visit.status} /></InfoItem>
+                        <InfoItem label="الايميل" value={visit.email} />
                     </div>
 
                     {/* 2. قسم عرض صورة الرخصة من S3 أو من الرابط المباشر */}
@@ -1029,7 +1036,7 @@ function LeaveDetailDialog({ leave, userId, onClose }: { leave: LeaveRequest | n
 
             if (!res.ok) throw new Error("فشل تنفيذ الإجراء");
 
-            toast({ title: "تم بنجاح", description: "تم تحديث حالة طلب التفرغ بنجاح" });
+            toast({ title: "تم بنجاح"});
             
             // تحديث جدول الطلبات فوراً
             mutate(`/api/staff/requests?user_id=${userId}`);
@@ -1038,7 +1045,7 @@ function LeaveDetailDialog({ leave, userId, onClose }: { leave: LeaveRequest | n
             setShowRejectInput(false);
             setRejectReason("");
         } catch (error) {
-            toast({ title: "خطأ", description: "حدث خطأ أثناء تنفيذ العملية", variant: "destructive" });
+            toast({ title: "خطأ", variant: "destructive" });
         } finally {
             setActing(false);
         }
@@ -1166,14 +1173,14 @@ function CertDetailDialog({ cert, userId, onClose }: { cert: CertRequest | null;
 
             if (!res.ok) throw new Error("فشل تنفيذ الإجراء");
 
-            toast({ title: "تم بنجاح", description: "تم تحديث حالة طلب الشهادة بنجاح" });
+            toast({ title: "تم بنجاح" });
             mutate(`/api/staff/requests?user_id=${userId}`);
             
             onClose();
             setShowRejectInput(false);
             setRejectReason("");
         } catch (error) {
-            toast({ title: "خطأ", description: "حدث خطأ أثناء تنفيذ العملية", variant: "destructive" });
+            toast({ title: "خطأ",  variant: "destructive" });
         } finally {
             setActing(false);
         }
@@ -1298,14 +1305,14 @@ function NoObjDetailDialog({ noObj, userId, onClose }: { noObj: NoObjRequest | n
 
             if (!res.ok) throw new Error("فشل تنفيذ الإجراء");
 
-            toast({ title: "تم بنجاح", description: "تم تحديث حالة طلب عدم الممانعة بنجاح" });
+            toast({ title: "تم بنجاح",  });
             mutate(`/api/staff/requests?user_id=${userId}`);
             
             onClose();
             setShowRejectInput(false);
             setRejectReason("");
         } catch (error) {
-            toast({ title: "خطأ", description: "حدث خطأ أثناء تنفيذ العملية", variant: "destructive" });
+            toast({ title: "خطأ", variant: "destructive" });
         } finally {
             setActing(false);
         }
@@ -1432,6 +1439,7 @@ function ChampDetailDialog({
     const [rejectReason, setRejectReason] = useState("");
     const [showRejectInput, setShowRejectInput] = useState(false);
 
+
     async function handleAction(action: "approve" | "reject") {
         if (!champId || !data) return;
         if (action === "reject" && !rejectReason.trim()) return;
@@ -1446,7 +1454,7 @@ function ChampDetailDialog({
 
             if (!res.ok) throw new Error("فشل تنفيذ الإجراء");
 
-            toast({ title: "تم بنجاح", description: "تم تحديث حالة البطولة بنجاح" });
+            toast({ title: "تم بنجاح" });
             
             // تحديث جدول الطلبات (تأكد من مطابقة المسار للمستخدم الحالي)
             mutate(`/api/staff/requests?user_id=${userId}`);
@@ -1455,7 +1463,7 @@ function ChampDetailDialog({
             setShowRejectInput(false);
             setRejectReason("");
         } catch (error) {
-            toast({ title: "خطأ", description: "حدث خطأ أثناء تنفيذ العملية", variant: "destructive" });
+            toast({ title: "خطأ",  variant: "destructive" });
         } finally {
             setActing(false);
         }

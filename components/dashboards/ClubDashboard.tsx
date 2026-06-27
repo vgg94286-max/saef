@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { useState } from "react";
 
-type VisitRequest = { id: string; status: string; created_at: string; note: string | null; report_text: string | null; };
+type VisitRequest = { id: string; status: string; created_at: string; note: string | null; report_text: string | null; visit_date: string | null; };
 type Tournament = { id: string; status: string; created_at: string; note: string | null; };
 
 type DashboardData = {
@@ -292,18 +292,18 @@ export function ClubDashboard({ data }: { data: DashboardData }) {
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 {/* زر إظهار التفاصيل - يظهر فقط إذا كان هناك ملاحظة أو تقرير */}
-                                                {(req.note || (req.type === 'visit' && req.report_text)) ? (
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        className="h-8 text-xs font-bold"
-                                                        onClick={() => setSelectedReq(req)}
-                                                    >
-                                                        عرض التفاصيل
-                                                    </Button>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground">لا توجد تفاصيل</span>
-                                                )}
+                                                {(req.note || req.type === 'visit') ? (
+    <Button 
+        variant="outline" 
+        size="sm" 
+        className="h-8 text-xs font-bold"
+        onClick={() => setSelectedReq(req)}
+    >
+        عرض التفاصيل
+    </Button>
+) : (
+    <span className="text-xs text-muted-foreground">لا توجد تفاصيل</span>
+)}
                                             </td>
                                         </tr>
                                     ))}
@@ -327,35 +327,56 @@ export function ClubDashboard({ data }: { data: DashboardData }) {
                             <FileText className="h-5 w-5" /> تفاصيل الطلب
                         </DialogTitle>
                     </DialogHeader>
+                    
 
                     {selectedReq && (
-                        <div className="space-y-4 py-4">
-                            {/* عرض الملاحظات إذا كانت موجودة (للزيرات والبطولات) */}
-                            {selectedReq.note && selectedReq.note.trim() !== "" && (
-                                <div className="space-y-1">
-                                    <p className="text-[10px] text-[#40916C] uppercase font-black">ملاحظة / سبب الرفض</p>
-                                    <div className="bg-[#FFF5F5] border-r-4 border-[#C53030] p-3 rounded-md text-sm text-[#C53030] font-medium">
-                                        {selectedReq.note}
+                            <div className="space-y-4 py-4">
+                                
+                                {/* عرض موعد الزيارة (لطلبات الزيارة فقط) */}
+                                {selectedReq.type === "visit" && (
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] text-[#40916C] uppercase font-black">موعد الزيارة</p>
+                                        <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-md border border-slate-200 text-sm font-medium text-slate-700">
+                                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                                            {selectedReq.visit_date ? (
+                                                new Date(selectedReq.visit_date).toLocaleDateString("en-US", {
+                                                    month: "long",
+                                                    day: "numeric",
+                                                    year: "numeric",
+                                                })
+                                            ) : (
+                                                <span className="text-muted-foreground">لم يتم تحديد موعد بعد</span>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {/* عرض التقرير الميداني إذا كان موجوداً (للزيارات فقط) */}
-                            {selectedReq.type === "visit" && selectedReq.report_text && selectedReq.report_text.trim() !== "" && (
-                                <div className="space-y-1 mt-4">
-                                    <p className="text-[10px] text-[#40916C] uppercase font-black">التقرير الميداني للجنة</p>
-                                    <a
-                                        href={selectedReq.report_text}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-2 w-full p-3 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors border border-slate-200 text-sm font-bold text-slate-700"
-                                    >
-                                        <ExternalLink className="h-4 w-4" /> استعراض ملف التقرير
-                                    </a>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                {/* عرض الملاحظات إذا كانت موجودة (للزيارات والبطولات) */}
+                                {selectedReq.note && selectedReq.note.trim() !== "" && (
+                                    <div className="space-y-1 mt-4">
+                                        <p className="text-[10px] text-[#40916C] uppercase font-black">ملاحظة / سبب الرفض</p>
+                                        <div className="bg-[#FFF5F5] border-r-4 border-[#C53030] p-3 rounded-md text-sm text-[#C53030] font-medium">
+                                            {selectedReq.note}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* عرض التقرير الميداني إذا كان موجوداً (للزيارات فقط) */}
+                                {selectedReq.type === "visit" && selectedReq.report_text && selectedReq.report_text.trim() !== "" && (
+                                    <div className="space-y-1 mt-4">
+                                        <p className="text-[10px] text-[#40916C] uppercase font-black">التقرير الميداني للجنة</p>
+                                        <a
+                                            href={selectedReq.report_text}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center justify-center gap-2 w-full p-3 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors border border-slate-200 text-sm font-bold text-slate-700"
+                                        >
+                                            <ExternalLink className="h-4 w-4" /> استعراض ملف التقرير
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                 </DialogContent>
             </Dialog>
             </main>

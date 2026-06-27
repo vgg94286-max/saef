@@ -33,7 +33,7 @@ export default function AdminClubsPage() {
 
 
     const filteredCities = useMemo(() => {
-        const uniqueCityNames = Array.from(new Set(cities.map((c: any) => c.name.ar)));
+        const uniqueCityNames = Array.from(new Set(cities.map((c: any) => c.name.en)));
 
         if (!searchTerm) return uniqueCityNames.slice(0, 10);
 
